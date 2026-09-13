@@ -34,6 +34,7 @@ A synthesizable, cycle-accurate **5-stage pipelined RISC-V (RV32I) processor** i
 
 ## Key Features
 
+🔗 **[Interactive HTML Schematic](https://pranav-2045.github.io/risv-5stage-pipelined-matmul/docs/schematics/interactive_schematic.html)**
 - **Standard 5-Stage Pipeline**: Separate **Fetch (IF)**, **Decode (ID)**, **Execute (EX)**, **Memory (MEM)**, and **Writeback (WB)** stages with enable- and clear-capable pipeline registers (`flopenr`, `flopenrc`).
 - **Comprehensive Hazard Handling**:
   - **Data Forwarding (Bypassing)**: Direct EX $\rightarrow$ EX, MEM $\rightarrow$ EX, and WB $\rightarrow$ EX forwarding paths for both source registers (`rs1`, `rs2`), preventing pipeline bubbles on RAW hazards.

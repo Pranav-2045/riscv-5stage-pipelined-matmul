@@ -1,0 +1,12 @@
+# Simulation artifacts
+*.vvp
+*.vcd
+*.out
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Temporary test copies
+sim/riscvtest.hex

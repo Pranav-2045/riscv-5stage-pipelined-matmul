@@ -8,7 +8,7 @@
 A synthesizable, cycle-accurate **5-stage pipelined RISC-V (RV32I) processor** implemented in Verilog. This core features a complete **Hazard Unit** supporting RAW data forwarding, load-use stall interlocks, and branch flushing, alongside an integrated hardware coprocessor executing a custom 64-cycle $4 \times 4$ integer matrix multiplication instruction (`matmul`).
 ---
 This core represents an architectural progression from my previous **[Single-Cycle RISC-V Core](https://github.com/Pranav-2045/rv32i-single-cycle-core)**, evolving the baseline unpipelined datapath into a decoupled 5-stage execution pipeline with active hazard mitigation, stall interlocks, and dedicated coprocessor orchestration.
----
+
 
 ## Table of Contents
 1. [Key Features](#key-features)

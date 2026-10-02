@@ -1,0 +1,2618 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RISC-V 5-Stage Pipelined Processor + 64-Cycle Matmul Schematic</title>
+    <!-- Inline SVG Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z'/></svg>">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#111827',
+                            900: '#090d16',
+                            950: '#05070a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Prism.js Syntax Highlighting CDN -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-verilog.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
+    
+    <style>
+        :root {
+            --bg-base: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-card-border: #cbd5e1;
+            --border-hover: #94a3b8;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #cbd5e1;
+            --grid-dot-color: #cbd5e1;
+            
+            --wire-data: #0f172a;
+            --wire-control: #1d4ed8;
+            --wire-hazard: #e11d48;
+            --wire-matmul: #d97706;
+
+            --fill-pipe-reg: #f1f5f9;
+            --stroke-pipe-reg: #64748b;
+            --fill-hazard: #fff1f2;
+            --stroke-hazard: #e11d48;
+            --fill-matmul: #fffbeb;
+            --stroke-matmul: #d97706;
+            --fill-controller: #faf5ff;
+            --stroke-controller: #9333ea;
+            --fill-alu: #f0fdf4;
+            --stroke-alu: #16a34a;
+            --fill-mem: #eff6ff;
+            --stroke-mem: #2563eb;
+            --fill-regfile: #f5f3ff;
+            --stroke-regfile: #7c3aed;
+            --fill-helper: #f8fafc;
+            --stroke-helper: #64748b;
+            
+            --active-wire-data: #2563eb;
+            --active-wire-control: #7c3aed;
+            --active-wire-hazard: #e11d48;
+            --active-wire-matmul: #d97706;
+            --active-block: #2563eb;
+            
+            --color-cyan: #2563eb;
+            --color-indigo: #7c3aed;
+            --color-cyan-rgba: rgba(37, 99, 235, 0.4);
+        }
+
+        .dark {
+            --bg-base: #05070a;
+            --bg-card: rgba(15, 23, 42, 0.55);
+            --bg-card-border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.18);
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --grid-dot-color: rgba(255, 255, 255, 0.04);
+            
+            --wire-data: #475569;
+            --wire-control: #6366f1;
+            --wire-hazard: #f43f5e;
+            --wire-matmul: #f59e0b;
+
+            --fill-pipe-reg: #0f172a;
+            --stroke-pipe-reg: #64748b;
+            --fill-hazard: #1c0a10;
+            --stroke-hazard: #f43f5e;
+            --fill-matmul: #1c1305;
+            --stroke-matmul: #f59e0b;
+            --fill-controller: #180928;
+            --stroke-controller: #c084fc;
+            --fill-alu: #061713;
+            --stroke-alu: #10b981;
+            --fill-mem: #0b152b;
+            --stroke-mem: #3b82f6;
+            --fill-regfile: #110d24;
+            --stroke-regfile: #8b5cf6;
+            --fill-helper: #0f172a;
+            --stroke-helper: #475569;
+            
+            --active-wire-data: #38bdf8;
+            --active-wire-control: #a855f7;
+            --active-wire-hazard: #fb7185;
+            --active-wire-matmul: #fbbf24;
+            --active-block: #38bdf8;
+            
+            --color-cyan: #38bdf8;
+            --color-indigo: #818cf8;
+            --color-cyan-rgba: rgba(56, 189, 248, 0.6);
+        }
+
+        body {
+            background-color: var(--bg-base);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .heading-font { font-family: 'Outfit', sans-serif; }
+        .mono-font { font-family: 'Fira Code', monospace; }
+
+        .glass-panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--bg-card-border);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .glass-panel:hover { border-color: var(--border-hover); }
+
+        /* Scrollbars */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(9, 13, 22, 0.05); border-radius: 4px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-track { background: rgba(9, 13, 22, 0.5); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.45); }
+
+        /* SVG Wire Styles */
+        .wire {
+            stroke: var(--wire-data) !important;
+            stroke-width: 2.5px;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            transition: stroke 0.3s, stroke-width 0.3s, filter 0.3s;
+            cursor: pointer;
+        }
+        .wire:hover {
+            stroke: var(--color-cyan) !important;
+            stroke-width: 4px !important;
+            filter: drop-shadow(0 0 6px var(--color-cyan-rgba)) !important;
+        }
+        .wire.control-wire {
+            stroke: var(--wire-control) !important;
+            stroke-width: 1.6px;
+            stroke-dasharray: 4 3;
+            opacity: 0.85;
+        }
+        .wire.hazard-wire {
+            stroke: var(--wire-hazard) !important;
+            stroke-width: 1.8px;
+            stroke-dasharray: 3 3;
+            opacity: 0.9;
+        }
+        .wire.matmul-wire {
+            stroke: var(--wire-matmul) !important;
+            stroke-width: 2.2px;
+            stroke-dasharray: 5 3;
+        }
+
+        /* Active Trace Animations */
+        .wire.active-wire-highlight {
+            stroke: var(--active-wire-data) !important;
+            stroke-dasharray: 8 4;
+            animation: flow-data 1.2s linear infinite;
+            stroke-width: 3.5px !important;
+            filter: drop-shadow(0 0 8px var(--active-wire-data)) !important;
+            opacity: 1 !important;
+        }
+        .wire.control-wire.active-wire-highlight {
+            stroke: var(--active-wire-control) !important;
+            stroke-dasharray: 6 3;
+            animation: flow-control 1.2s linear infinite;
+            stroke-width: 2.5px !important;
+            filter: drop-shadow(0 0 6px var(--active-wire-control)) !important;
+        }
+        .wire.hazard-wire.active-wire-highlight {
+            stroke: var(--active-wire-hazard) !important;
+            stroke-dasharray: 6 3;
+            animation: flow-hazard 1s linear infinite;
+            stroke-width: 2.8px !important;
+            filter: drop-shadow(0 0 8px var(--active-wire-hazard)) !important;
+        }
+        .wire.matmul-wire.active-wire-highlight {
+            stroke: var(--active-wire-matmul) !important;
+            stroke-dasharray: 8 3;
+            animation: flow-matmul 1.2s linear infinite;
+            stroke-width: 3.5px !important;
+            filter: drop-shadow(0 0 8px var(--active-wire-matmul)) !important;
+        }
+
+        .wire.stable-active-highlight {
+            stroke: var(--active-wire-data) !important;
+            stroke-width: 3.5px !important;
+            stroke-dasharray: none !important;
+            opacity: 1 !important;
+        }
+        .wire.control-wire.stable-active-highlight {
+            stroke: var(--active-wire-control) !important;
+            stroke-width: 2.5px !important;
+            stroke-dasharray: 4 3 !important;
+        }
+        .wire.hazard-wire.stable-active-highlight {
+            stroke: var(--active-wire-hazard) !important;
+            stroke-width: 2.5px !important;
+            stroke-dasharray: 3 3 !important;
+        }
+
+        @keyframes flow-data { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+        @keyframes flow-control { from { stroke-dashoffset: 18; } to { stroke-dashoffset: 0; } }
+        @keyframes flow-hazard { from { stroke-dashoffset: 18; } to { stroke-dashoffset: 0; } }
+        @keyframes flow-matmul { from { stroke-dashoffset: 22; } to { stroke-dashoffset: 0; } }
+
+        /* Interactive Blocks */
+        .block-interactive { cursor: pointer; transition: transform 0.2s, filter 0.3s; }
+        .block-interactive:hover rect, .block-interactive:hover path {
+            stroke: var(--color-cyan) !important;
+            stroke-width: 2.5px !important;
+            filter: drop-shadow(0 0 8px var(--color-cyan-rgba)) !important;
+        }
+        .block-interactive.active-block-highlight rect, .block-interactive.active-block-highlight path {
+            stroke: var(--active-block) !important;
+            stroke-width: 3px !important;
+            filter: drop-shadow(0 0 12px var(--active-block)) !important;
+        }
+        .block-interactive.stable-active-highlight rect, .block-interactive.stable-active-highlight path {
+            stroke: var(--active-block) !important;
+            stroke-width: 2.5px !important;
+            filter: drop-shadow(0 0 8px var(--active-block)) !important;
+        }
+        .pinned-element-highlight rect, .pinned-element-highlight path {
+            stroke: #f59e0b !important;
+            stroke-width: 3px !important;
+            filter: drop-shadow(0 0 14px rgba(245, 158, 11, 0.9)) !important;
+        }
+
+        /* Dimming utility */
+        .dimmed { opacity: 0.12 !important; filter: grayscale(90%) blur(0.2px) !important; pointer-events: none; }
+        .stage-delimiter { stroke: rgba(148, 163, 184, 0.15); stroke-dasharray: 6 6; }
+        .dark .stage-delimiter { stroke: rgba(255, 255, 255, 0.08); }
+
+        #schematic-svg { user-select: none; -webkit-user-select: none; }
+        svg text { stroke: none !important; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col h-screen overflow-hidden">
+
+    <!-- Top Header -->
+    <header class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 px-6 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-3.5">
+            <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-sky-500 to-amber-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="heading-font text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                    RISC-V 5-Stage Pipelined Processor
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">RV32I</span>
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">+ 64-Cycle Matmul</span>
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Interactive Microarchitecture, Hazard Unit & Accelerator Visualizer</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-md border border-slate-200 dark:border-slate-700/50 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Synthesizable RTL Active (19 Modules)
+            </span>
+            <button onclick="toggleTheme()" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors border border-slate-200 dark:border-slate-700" title="Toggle Light/Dark Theme">
+                <svg class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M14.5 12a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                </svg>
+                <svg class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+            </button>
+            <button onclick="openVerilogModal('riscvpipelined.v')" class="text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-lg shadow-indigo-600/25 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                </svg>
+                &lt;/&gt; View Verilog Core (riscvpipelined.v)
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 p-5 flex flex-col xl:flex-row gap-4 overflow-hidden relative">
+        
+        <!-- Left Sidebar: Controls, Traces, & Inspector with Segmented Tabs -->
+        <section id="sidebar" class="w-full xl:w-[410px] flex-shrink-0 flex flex-col gap-3 overflow-y-auto pr-1.5 custom-scrollbar">
+            
+            <!-- Segmented Tab Bar -->
+            <div class="flex items-center gap-1.5 p-1 bg-slate-200/60 dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0">
+                <button onclick="switchSidebarTab('traces')" id="tab-btn-traces" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    Execution Traces
+                </button>
+                <button onclick="switchSidebarTab('inspector')" id="tab-btn-inspector" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all flex items-center justify-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    Hardware Inspector
+                </button>
+            </div>
+
+            <!-- Tab Content 1: Execution Traces View -->
+            <div id="tab-content-traces" class="flex flex-col gap-3">
+                <!-- Instructions Card -->
+                <div class="glass-panel rounded-2xl p-4">
+                    <h3 class="text-sm font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 mb-1 heading-font">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Schematic Interactive Guide
+                    </h3>
+                    <ul class="text-xs text-slate-600 dark:text-slate-300 space-y-1 list-disc pl-4">
+                        <li><strong class="text-slate-900 dark:text-white">Double-click</strong> any hardware module to view its full Verilog source code.</li>
+                        <li><strong class="text-slate-900 dark:text-white">Click or Hover</strong> modules or wires to inspect pinout & hazard signals in the Hardware Inspector.</li>
+                        <li>Select an <strong class="text-indigo-500">Execution Trace</strong> below to step through pipeline dataflows, forwarding, stalls & matmul bus hijacking.</li>
+                    </ul>
+                </div>
+
+                <!-- Execution Trace Card -->
+                <div class="glass-panel rounded-2xl p-4 flex flex-col gap-3">
+                    <div>
+                        <h2 class="heading-font text-xs font-bold tracking-wider text-slate-900 dark:text-white uppercase flex items-center justify-between">
+                            Pipeline Execution Traces
+                            <span class="text-[10px] font-normal text-slate-400">7 Modes</span>
+                        </h2>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Visualize hazard forwarding, stalls, branch flushes & matmul</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="setTrace('rtype')" data-trace="rtype" class="trace-btn text-left text-xs px-2.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:border-indigo-500 text-slate-700 dark:text-slate-300 font-medium transition-all">
+                            ADD (R-Type Flow)
+                        </button>
+                        <button onclick="setTrace('forwarding')" data-trace="forwarding" class="trace-btn text-left text-xs px-2.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:border-indigo-500 text-slate-700 dark:text-slate-300 font-medium transition-all">
+                            RAW Hazard Forwarding
+                        </button>
+                        <button onclick="setTrace('loaduse')" data-trace="loaduse" class="trace-btn text-left text-xs px-2.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:border-indigo-500 text-slate-700 dark:text-slate-300 font-medium transition-all">
+                            Load-Use 1-Cycle Stall
+                        </button>
+                        <button onclick="setTrace('branch')" data-trace="branch" class="trace-btn text-left text-xs px-2.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:border-indigo-500 text-slate-700 dark:text-slate-300 font-medium transition-all">
+                            BEQ Branch & Flush
+                        </button>
+                        <button onclick="setTrace('load')" data-trace="load" class="trace-btn text-left text-xs px-2.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:border-indigo-500 text-slate-700 dark:text-slate-300 font-medium transition-all">
+                            LW (Load from DMem)
+                        </button>
+                        <button onclick="setTrace('store')" data-trace="store" class="trace-btn text-left text-xs px-2.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:border-indigo-500 text-slate-700 dark:text-slate-300 font-medium transition-all">
+                            SW (Store to DMem)
+                        </button>
+                    </div>
+                    
+                    <!-- Special Matmul Trace Button -->
+                    <button onclick="setTrace('matmul')" data-trace="matmul" class="trace-btn w-full text-left text-xs px-3 py-2.5 rounded-lg border border-amber-500/40 bg-gradient-to-r from-amber-500/10 to-amber-500/20 hover:border-amber-500 text-amber-600 dark:text-amber-400 font-bold transition-all flex items-center justify-between">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                            Custom Matmul (64-Cycle Accelerator)
+                        </span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-500">Opcode 0001011</span>
+                    </button>
+
+                    <button onclick="setTrace(null)" class="w-full text-center text-xs py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors font-medium">
+                        Clear Active Trace
+                    </button>
+
+                    <!-- Instruction Info Box -->
+                    <div id="instruction-desc" class="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/70 p-3 rounded-lg border border-slate-200 dark:border-slate-800 min-h-[56px] flex flex-col justify-center">
+                        Select a trace above to visualize pipeline progression.
+                    </div>
+
+                    <!-- Trace Sequencer Controls -->
+                    <div class="border-t border-slate-200 dark:border-slate-800 pt-3 flex flex-col gap-2">
+                        <div class="flex items-center justify-between gap-1.5">
+                            <button onclick="prevStep()" id="seq-prev-btn" class="flex-1 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded text-xs font-semibold transition-colors disabled:opacity-40" disabled>
+                                |◀ Prev Stage
+                            </button>
+                            <button onclick="togglePlay()" id="seq-play-btn" class="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1 shadow-md shadow-indigo-600/25">
+                                <span id="play-icon">▶</span> <span id="play-text">Auto Play</span>
+                            </button>
+                            <button onclick="nextStep()" id="seq-next-btn" class="flex-1 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded text-xs font-semibold transition-colors disabled:opacity-40" disabled>
+                                Next Stage ▶|
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-2 text-[11px] text-slate-500">
+                            <span>Speed:</span>
+                            <input type="range" id="seq-speed" min="300" max="2500" value="900" step="100" class="flex-1 accent-indigo-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            <span id="seq-speed-val" class="mono-font w-12 text-right">900ms</span>
+                        </div>
+                        <div id="seq-status" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 min-h-[16px]">
+                            No active trace
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content 2: Hardware Inspector View -->
+            <div id="tab-content-inspector" class="hidden flex flex-col gap-3">
+                <div id="inspector-card" class="glass-panel rounded-2xl p-4 flex flex-col gap-3">
+                    <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                        <h3 class="heading-font text-xs font-bold tracking-wider text-slate-900 dark:text-white uppercase flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            Hardware Module Inspector
+                        </h3>
+                        <span id="inspector-badge" class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 font-mono font-semibold border border-indigo-500/30">Select Module</span>
+                    </div>
+                    
+                    <div id="inspector-content" class="text-xs space-y-3">
+                        <p class="text-slate-500 italic">Click any hardware block, pipeline register, or signal wire on the schematic to inspect its pinout, width, function and Verilog mapping.</p>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Main Viewport: Interactive SVG Canvas -->
+        <section class="flex-1 glass-panel rounded-2xl overflow-hidden relative flex flex-col shadow-2xl">
+            
+            <!-- Floating Zoom / Pan Controls (Positioned bottom-right to avoid obscuring headers) -->
+            <div class="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 rounded-xl p-1.5 shadow-xl backdrop-blur-md">
+                <button onclick="zoomIn()" class="p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Zoom In (+)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                </button>
+                <button onclick="zoomOut()" class="p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Zoom Out (-)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
+                </button>
+                <button onclick="resetZoom()" class="p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-xs font-semibold px-2" title="Reset Zoom">
+                    100%
+                </button>
+                <button onclick="zoomToFit()" class="p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Fit to Screen">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                </button>
+            </div>
+
+            <!-- Double-click Tip Badge (Positioned bottom-left) -->
+            <div class="absolute bottom-4 left-4 z-20 pointer-events-none text-[11px] text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-lg backdrop-blur-md flex items-center gap-1.5">
+                <span class="font-bold text-indigo-500 font-mono">Tip:</span> Double-click any module block to open its Verilog RTL source code
+            </div>
+
+            <!-- SVG Container -->
+            <div id="svg-viewport-wrapper" class="w-full h-full cursor-grab active:cursor-grabbing overflow-hidden">
+                <svg id="schematic-svg" width="100%" height="100%" viewBox="0 0 2550 1350" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <!-- Background Grid Pattern -->
+        <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+            <circle cx="15" cy="15" r="1.2" fill="var(--grid-dot-color)" />
+        </pattern>
+        <!-- Arrows -->
+        <marker id="arrow-data" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--wire-data)" />
+        </marker>
+        <marker id="arrow-control" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--wire-control)" />
+        </marker>
+        <marker id="arrow-hazard" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--wire-hazard)" />
+        </marker>
+        <marker id="arrow-matmul" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--wire-matmul)" />
+        </marker>
+    </defs>
+
+    <!-- Canvas Background -->
+    <rect width="100%" height="100%" fill="url(#grid)" />
+
+    <g id="viewport-group" transform="matrix(1 0 0 1 0 0)">
+
+        <!-- =================================================================== -->
+        <!-- 1. STAGE BACKGROUND COLUMNS & HEADERS                               -->
+        <!-- =================================================================== -->
+        <g id="stage-headers" font-family="'Outfit', sans-serif" font-weight="700" font-size="14" letter-spacing="2">
+            <!-- Stage 1: IF -->
+            <rect x="60" y="30" width="390" height="40" rx="8" fill="#3b82f6" fill-opacity="0.1" stroke="#3b82f6" stroke-opacity="0.3" stroke-width="1.5" />
+            <text x="255" y="55" fill="#3b82f6" text-anchor="middle">FETCH (IF)</text>
+            <line x1="460" y1="30" x2="460" y2="1280" class="stage-delimiter" stroke-width="1.5" />
+
+            <!-- Pipeline Register 1: IF/ID -->
+            <rect x="465" y="30" width="70" height="40" rx="6" fill="#64748b" fill-opacity="0.15" stroke="#64748b" stroke-opacity="0.4" stroke-width="1.5" />
+            <text x="500" y="55" fill="#94a3b8" text-anchor="middle" font-size="11">IF / ID</text>
+
+            <!-- Stage 2: ID -->
+            <rect x="545" y="30" width="395" height="40" rx="8" fill="#8b5cf6" fill-opacity="0.1" stroke="#8b5cf6" stroke-opacity="0.3" stroke-width="1.5" />
+            <text x="742" y="55" fill="#8b5cf6" text-anchor="middle">DECODE (ID)</text>
+            <line x1="950" y1="30" x2="950" y2="1280" class="stage-delimiter" stroke-width="1.5" />
+
+            <!-- Pipeline Register 2: ID/EX -->
+            <rect x="955" y="30" width="70" height="40" rx="6" fill="#64748b" fill-opacity="0.15" stroke="#64748b" stroke-opacity="0.4" stroke-width="1.5" />
+            <text x="990" y="55" fill="#94a3b8" text-anchor="middle" font-size="11">ID / EX</text>
+
+            <!-- Stage 3: EX -->
+            <rect x="1035" y="30" width="505" height="40" rx="8" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-opacity="0.3" stroke-width="1.5" />
+            <text x="1287" y="55" fill="#10b981" text-anchor="middle">EXECUTE (EX)</text>
+            <line x1="1550" y1="30" x2="1550" y2="1280" class="stage-delimiter" stroke-width="1.5" />
+
+            <!-- Pipeline Register 3: EX/MEM -->
+            <rect x="1555" y="30" width="70" height="40" rx="6" fill="#64748b" fill-opacity="0.15" stroke="#64748b" stroke-opacity="0.4" stroke-width="1.5" />
+            <text x="1590" y="55" fill="#94a3b8" text-anchor="middle" font-size="11">EX / MEM</text>
+
+            <!-- Stage 4: MEM -->
+            <rect x="1635" y="30" width="405" height="40" rx="8" fill="#0ea5e9" fill-opacity="0.1" stroke="#0ea5e9" stroke-opacity="0.3" stroke-width="1.5" />
+            <text x="1837" y="55" fill="#0ea5e9" text-anchor="middle">MEMORY (MEM)</text>
+            <line x1="2050" y1="30" x2="2050" y2="1280" class="stage-delimiter" stroke-width="1.5" />
+
+            <!-- Pipeline Register 4: MEM/WB -->
+            <rect x="2055" y="30" width="70" height="40" rx="6" fill="#64748b" fill-opacity="0.15" stroke="#64748b" stroke-opacity="0.4" stroke-width="1.5" />
+            <text x="2090" y="55" fill="#94a3b8" text-anchor="middle" font-size="11">MEM / WB</text>
+
+            <!-- Stage 5: WB -->
+            <rect x="2135" y="30" width="355" height="40" rx="8" fill="#ec4899" fill-opacity="0.1" stroke="#ec4899" stroke-opacity="0.3" stroke-width="1.5" />
+            <text x="2312" y="55" fill="#ec4899" text-anchor="middle">WRITEBACK (WB)</text>
+        </g>
+
+        <!-- =================================================================== -->
+        <!-- 2. HAZARD UNIT (Top prominent block spanning across stages)         -->
+        <!-- =================================================================== -->
+        <g id="block-hazard" class="block-interactive" ondblclick="openVerilogModal('hazard.v')" onclick="inspectElement('hazard')">
+            <rect x="490" y="90" width="1540" height="110" rx="14" fill="var(--fill-hazard)" stroke="var(--stroke-hazard)" stroke-width="2.5" />
+            <text x="510" y="118" font-family="'Outfit', sans-serif" font-weight="700" font-size="15" fill="var(--stroke-hazard)">Hazard &amp; Stall Unit (hazard.v)</text>
+            <text x="510" y="136" font-family="'Inter', sans-serif" font-size="11" fill="var(--text-muted)">RAW Forwarding (EX->EX, MEM->EX) • Load-Use 1-Cycle Stall • Branch Flushes • 64-Cycle Matmul Freeze FSM</text>
+            
+            <!-- Sub-boxes inside Hazard Unit -->
+            <rect x="510" y="148" width="310" height="40" rx="6" fill="#f43f5e" fill-opacity="0.1" stroke="#f43f5e" stroke-opacity="0.3" />
+            <text x="520" y="165" font-family="'Fira Code', monospace" font-size="10" font-weight="600" fill="var(--stroke-hazard)">Stall Engine</text>
+            <text x="520" y="179" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">StallPC, StallID, StallEX</text>
+
+            <rect x="835" y="148" width="320" height="40" rx="6" fill="#6366f1" fill-opacity="0.1" stroke="#6366f1" stroke-opacity="0.3" />
+            <text x="845" y="165" font-family="'Fira Code', monospace" font-size="10" font-weight="600" fill="#818cf8">Forwarding Unit</text>
+            <text x="845" y="179" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">ForwardAE[1:0], ForwardBE[1:0]</text>
+
+            <rect x="1170" y="148" width="330" height="40" rx="6" fill="#f43f5e" fill-opacity="0.1" stroke="#f43f5e" stroke-opacity="0.3" />
+            <text x="1180" y="165" font-family="'Fira Code', monospace" font-size="10" font-weight="600" fill="var(--stroke-hazard)">Flush Engine</text>
+            <text x="1180" y="179" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">FlushID, FlushEX, FlushMEM</text>
+
+            <rect x="1515" y="148" width="495" height="40" rx="6" fill="#f59e0b" fill-opacity="0.1" stroke="#f59e0b" stroke-opacity="0.3" />
+            <text x="1525" y="165" font-family="'Fira Code', monospace" font-size="10" font-weight="600" fill="#f59e0b">Matmul State Machine (EX-Stage)</text>
+            <text x="1525" y="179" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">M_IDLE ➔ DRAIN1 ➔ DRAIN2 ➔ WAIT_BUSY ➔ RUNNING (64c) ➔ DONE</text>
+        </g>
+
+        <!-- =================================================================== -->
+        <!-- 3. STAGE 1: INSTRUCTION FETCH (IF)                                  -->
+        <!-- =================================================================== -->
+        <!-- PC MUX (pcmux) -->
+        <g id="block-pcmux" class="block-interactive" ondblclick="openVerilogModal('mux2.v')" onclick="inspectElement('pcmux')">
+            <polygon points="90,460 135,475 135,555 90,570" fill="var(--fill-helper)" stroke="var(--stroke-helper)" stroke-width="2" />
+            <text x="112" y="518" font-family="'Outfit', sans-serif" font-size="11" font-weight="700" fill="var(--text-main)" text-anchor="middle">pcmux</text>
+            <text x="100" y="482" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">0</text>
+            <text x="100" y="552" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">1</text>
+            <text x="112" y="455" font-family="'Fira Code', monospace" font-size="9" fill="#818cf8" text-anchor="middle">PCSrcE</text>
+        </g>
+
+        <!-- PC Register (pcreg: flopenr) -->
+        <g id="block-pcreg" class="block-interactive" ondblclick="openVerilogModal('flopenr.v')" onclick="inspectElement('pcreg')">
+            <rect x="180" y="470" width="80" height="90" rx="10" fill="var(--fill-pipe-reg)" stroke="var(--stroke-pipe-reg)" stroke-width="2.5" />
+            <text x="220" y="505" font-family="'Outfit', sans-serif" font-weight="700" font-size="13" fill="var(--text-main)" text-anchor="middle">PC</text>
+            <text x="220" y="522" font-family="'Inter', sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">flopenr</text>
+            <text x="190" y="545" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">d</text>
+            <text x="250" y="545" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">q</text>
+            <text x="220" y="555" font-family="'Fira Code', monospace" font-size="8" fill="#f43f5e" text-anchor="middle">en=~StallPC</text>
+        </g>
+
+        <!-- PC+4 Adder (pcadd4) -->
+        <g id="block-pcadd4" class="block-interactive" ondblclick="openVerilogModal('adder.v')" onclick="inspectElement('pcadd4')">
+            <rect x="180" y="320" width="80" height="70" rx="10" fill="var(--fill-helper)" stroke="var(--stroke-helper)" stroke-width="2" />
+            <text x="220" y="348" font-family="'Outfit', sans-serif" font-weight="700" font-size="12" fill="var(--text-main)" text-anchor="middle">+4 Adder</text>
+            <text x="220" y="365" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)" text-anchor="middle">pcadd4</text>
+            <text x="190" y="375" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">a</text>
+            <text x="250" y="375" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">y</text>
+        </g>
+
+        <!-- Instruction Memory (imem) -->
+        <g id="block-imem" class="block-interactive" ondblclick="openVerilogModal('imem.v')" onclick="inspectElement('imem')">
+            <rect x="310" y="445" width="120" height="140" rx="12" fill="var(--fill-mem)" stroke="var(--stroke-mem)" stroke-width="2.5" />
+            <text x="370" y="495" font-family="'Outfit', sans-serif" font-weight="700" font-size="14" fill="#3b82f6" text-anchor="middle">Instruction</text>
+            <text x="370" y="515" font-family="'Outfit', sans-serif" font-weight="700" font-size="14" fill="#3b82f6" text-anchor="middle">Memory</text>
+            <text x="370" y="535" font-family="'Inter', sans-serif" font-size="10" fill="var(--text-muted)" text-anchor="middle">imem.v</text>
+            <text x="325" y="565" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">a</text>
+            <text x="415" y="565" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">rd</text>
+        </g>
+
+        <!-- =================================================================== -->
+        <!-- 4. PIPELINE REGISTER 1: IF / ID (`regID` flopenrc)                  -->
+        <!-- =================================================================== -->
+        <g id="block-regID" class="block-interactive" ondblclick="openVerilogModal('flopenrc.v')" onclick="inspectElement('regID')">
+            <rect x="465" y="240" width="70" height="660" rx="10" fill="var(--fill-pipe-reg)" stroke="var(--stroke-pipe-reg)" stroke-width="2.5" />
+            <text x="500" y="270" font-family="'Outfit', sans-serif" font-weight="800" font-size="13" fill="var(--text-main)" text-anchor="middle">IF/ID</text>
+            <text x="500" y="285" font-family="'Inter', sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">flopenrc</text>
+            
+            <!-- Latched fields -->
+            <rect x="472" y="325" width="56" height="50" rx="4" fill="#3b82f6" fill-opacity="0.15" stroke="#3b82f6" stroke-opacity="0.4" />
+            <text x="500" y="355" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-main)" text-anchor="middle">PCPlus4D</text>
+
+            <rect x="472" y="475" width="56" height="70" rx="4" fill="#8b5cf6" fill-opacity="0.15" stroke="#8b5cf6" stroke-opacity="0.4" />
+            <text x="500" y="515" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-main)" text-anchor="middle">instrD</text>
+
+            <rect x="472" y="665" width="56" height="50" rx="4" fill="#3b82f6" fill-opacity="0.15" stroke="#3b82f6" stroke-opacity="0.4" />
+            <text x="500" y="695" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-main)" text-anchor="middle">PCD</text>
+
+            <text x="500" y="865" font-family="'Fira Code', monospace" font-size="8" fill="#f43f5e" text-anchor="middle">en=~StallID</text>
+            <text x="500" y="880" font-family="'Fira Code', monospace" font-size="8" fill="#f43f5e" text-anchor="middle">clr=FlushID</text>
+        </g>
+
+        <!-- =================================================================== -->
+        <!-- 5. STAGE 2: INSTRUCTION DECODE (ID)                                 -->
+        <!-- =================================================================== -->
+        <!-- Controller (controller.v: maindec + aludec) -->
+        <g id="block-controller" class="block-interactive" ondblclick="openVerilogModal('controller.v')" onclick="inspectElement('controller')">
+            <rect x="560" y="240" width="370" height="150" rx="14" fill="var(--fill-controller)" stroke="var(--stroke-controller)" stroke-width="2" />
+            <text x="580" y="265" font-family="'Outfit', sans-serif" font-weight="700" font-size="13" fill="#9333ea">Controller Unit (controller.v)</text>
+            
+            <!-- Main Decoder (maindec) -->
+            <g id="block-maindec" class="block-interactive" ondblclick="openVerilogModal('maindec.v')" onclick="inspectElement('maindec')">
+                <rect x="580" y="280" width="160" height="95" rx="8" fill="#a855f7" fill-opacity="0.1" stroke="#a855f7" stroke-width="1.5" />
+                <text x="660" y="315" font-family="'Outfit', sans-serif" font-size="12" font-weight="700" fill="#9333ea" text-anchor="middle">Main Decoder</text>
+                <text x="660" y="335" font-family="'Inter', sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">maindec.v</text>
+                <text x="660" y="360" font-family="'Fira Code', monospace" font-size="8" fill="#f59e0b" text-anchor="middle">matmul_startD (0001011)</text>
+            </g>
+
+            <!-- ALU Decoder (aludec) -->
+            <g id="block-aludec" class="block-interactive" ondblclick="openVerilogModal('aludec.v')" onclick="inspectElement('aludec')">
+                <rect x="760" y="280" width="150" height="95" rx="8" fill="#a855f7" fill-opacity="0.1" stroke="#a855f7" stroke-width="1.5" />
+                <text x="835" y="315" font-family="'Outfit', sans-serif" font-size="12" font-weight="700" fill="#9333ea" text-anchor="middle">ALU Decoder</text>
+                <text x="835" y="335" font-family="'Inter', sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">aludec.v</text>
+                <text x="835" y="360" font-family="'Fira Code', monospace" font-size="8" fill="#818cf8" text-anchor="middle">ALUControlD[2:0]</text>
+            </g>
+        </g>
+
+        <!-- Matmul 3rd Pointer MUX (a1D mux) -->
+        <g id="block-a1Dmux" class="block-interactive" ondblclick="openVerilogModal('mux2.v')" onclick="inspectElement('a1Dmux')">
+            <polygon points="575,480 610,490 610,545 575,555" fill="var(--fill-helper)" stroke="var(--stroke-helper)" stroke-width="1.8" />
+            <text x="592" y="520" font-family="'Outfit', sans-serif" font-size="9" font-weight="700" fill="var(--text-main)" text-anchor="middle">a1D Mux</text>
+            <text x="583" y="497" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">0:rs1</text>
+            <text x="583" y="542" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">1:rdE</text>
+            <text x="592" y="475" font-family="'Fira Code', monospace" font-size="8" fill="#f59e0b" text-anchor="middle">matmul_rd_sel</text>
+        </g>
+
+        <!-- Register File (regfile) -->
+        <g id="block-regfile" class="block-interactive" ondblclick="openVerilogModal('regfile.v')" onclick="inspectElement('regfile')">
+            <rect x="650" y="460" width="150" height="220" rx="12" fill="var(--fill-regfile)" stroke="var(--stroke-regfile)" stroke-width="2.5" />
+            <text x="725" y="500" font-family="'Outfit', sans-serif" font-weight="700" font-size="14" fill="#8b5cf6" text-anchor="middle">Register File</text>
+            <text x="725" y="518" font-family="'Inter', sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">regfile.v (32x32)</text>
+            
+            <text x="665" y="530" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">a1</text>
+            <text x="665" y="570" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">a2</text>
+            <text x="665" y="615" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">a3 (RdW)</text>
+            <text x="665" y="650" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">wd3 (ResultW)</text>
+            <text x="725" y="670" font-family="'Fira Code', monospace" font-size="8" fill="#ec4899" text-anchor="middle">we3=RegWriteW</text>
+
+            <text x="785" y="540" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)" text-anchor="end">rd1D</text>
+            <text x="785" y="610" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)" text-anchor="end">rd2D</text>
+        </g>
+
+        <!-- Immediate Extend Unit (extend) -->
+        <g id="block-extend" class="block-interactive" ondblclick="openVerilogModal('extend.v')" onclick="inspectElement('extend')">
+            <rect x="665" y="730" width="130" height="90" rx="10" fill="var(--fill-helper)" stroke="var(--stroke-helper)" stroke-width="2" />
+            <text x="730" y="765" font-family="'Outfit', sans-serif" font-weight="700" font-size="13" fill="var(--text-main)" text-anchor="middle">Extend</text>
+            <text x="730" y="782" font-family="'Inter', sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">extend.v (ImmGen)</text>
+            <text x="675" y="805" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">instr[31:7]</text>
+            <text x="785" y="805" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)" text-anchor="end">immextD</text>
+        </g>
+
+        <!-- =================================================================== -->
+        <!-- 6. PIPELINE REGISTER 2: ID / EX (`regE` flopenrc)                  -->
+        <!-- =================================================================== -->
+        <g id="block-regE" class="block-interactive" ondblclick="openVerilogModal('flopenrc.v')" onclick="inspectElement('regE')">
+            <rect x="955" y="240" width="70" height="740" rx="10" fill="var(--fill-pipe-reg)" stroke="var(--stroke-pipe-reg)" stroke-width="2.5" />
+            <text x="990" y="270" font-family="'Outfit', sans-serif" font-weight="800" font-size="13" fill="var(--text-main)" text-anchor="middle">ID/EX</text>
+            <text x="990" y="285" font-family="'Inter', sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">flopenrc</text>
+            
+            <rect x="962" y="300" width="56" height="75" rx="4" fill="#a855f7" fill-opacity="0.15" stroke="#a855f7" stroke-opacity="0.4" />
+            <text x="990" y="335" font-family="'Fira Code', monospace" font-size="8" fill="#818cf8" text-anchor="middle">Controls (EX)</text>
+            <text x="990" y="350" font-family="'Fira Code', monospace" font-size="7" fill="var(--text-muted)" text-anchor="middle">ALU/Mem/Reg</text>
+
+            <rect x="962" y="385" width="56" height="45" rx="4" fill="#3b82f6" fill-opacity="0.15" stroke="#3b82f6" stroke-opacity="0.4" />
+            <text x="990" y="412" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">PCPlus4E</text>
+
+            <rect x="962" y="440" width="56" height="45" rx="4" fill="#8b5cf6" fill-opacity="0.15" stroke="#8b5cf6" stroke-opacity="0.4" />
+            <text x="990" y="468" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">rd1E</text>
+
+            <rect x="962" y="495" width="56" height="45" rx="4" fill="#8b5cf6" fill-opacity="0.15" stroke="#8b5cf6" stroke-opacity="0.4" />
+            <text x="990" y="523" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">rd2E</text>
+
+            <rect x="962" y="550" width="56" height="45" rx="4" fill="#3b82f6" fill-opacity="0.15" stroke="#3b82f6" stroke-opacity="0.4" />
+            <text x="990" y="578" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">PCE</text>
+
+            <rect x="962" y="605" width="56" height="65" rx="4" fill="#f43f5e" fill-opacity="0.15" stroke="#f43f5e" stroke-opacity="0.4" />
+            <text x="990" y="630" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">Rs1E, Rs2E</text>
+            <text x="990" y="645" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">RdE [4:0]</text>
+
+            <rect x="962" y="680" width="56" height="45" rx="4" fill="#64748b" fill-opacity="0.15" stroke="#64748b" stroke-opacity="0.4" />
+            <text x="990" y="708" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">immextE</text>
+
+            <text x="990" y="945" font-family="'Fira Code', monospace" font-size="8" fill="#f43f5e" text-anchor="middle">en=~StallEX</text>
+            <text x="990" y="960" font-family="'Fira Code', monospace" font-size="8" fill="#f43f5e" text-anchor="middle">clr=FlushEX</text>
+        </g>
+
+        <!-- =================================================================== -->
+        <!-- 7. STAGE 3: EXECUTE (EX)                                            -->
+        <!-- =================================================================== -->
+        <!-- Forwarding Mux A (forwarda_mux: 3:1) -->
+        <g id="block-forwarda_mux" class="block-interactive" ondblclick="openVerilogModal('mux3.v')" onclick="inspectElement('forwarda_mux')">
+            <polygon points="1065,450 1105,465 1105,535 1065,550" fill="var(--fill-helper)" stroke="var(--stroke-helper)" stroke-width="2" />
+            <text x="1085" y="505" font-family="'Outfit', sans-serif" font-size="10" font-weight="700" fill="var(--text-main)" text-anchor="middle">FwdA</text>
+            <text x="1075" y="475" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">0:rd1</text>
+            <text x="1075" y="500" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">1:WB</text>
+            <text x="1075" y="530" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">2:MEM</text>
+            <text x="1085" y="440" font-family="'Fira Code', monospace" font-size="8" fill="#818cf8" text-anchor="middle">ForwardAE</text>
+        </g>
+
+        <!-- Forwarding Mux B (forwardb_mux: 3:1) -->
+        <g id="block-forwardb_mux" class="block-interactive" ondblclick="openVerilogModal('mux3.v')" onclick="inspectElement('forwardb_mux')">
+            <polygon points="1065,580 1105,595 1105,665 1065,680" fill="var(--fill-helper)" stroke="var(--stroke-helper)" stroke-width="2" />
+            <text x="1085" y="635" font-family="'Outfit', sans-serif" font-size="10" font-weight="700" fill="var(--text-main)" text-anchor="middle">FwdB</text>
+            <text x="1075" y="605" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">0:rd2</text>
+            <text x="1075" y="630" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">1:WB</text>
+            <text x="1075" y="660" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">2:MEM</text>
+            <text x="1085" y="570" font-family="'Fira Code', monospace" font-size="8" fill="#818cf8" text-anchor="middle">ForwardBE</text>
+        </g>
+
+        <!-- ALUSrc MUX (srcbmux: 2:1) -->
+        <g id="block-srcbmux" class="block-interactive" ondblclick="openVerilogModal('mux2.v')" onclick="inspectElement('srcbmux')">
+            <polygon points="1150,620 1185,635 1185,695 1150,710" fill="var(--fill-helper)" stroke="var(--stroke-helper)" stroke-width="2" />
+            <text x="1167" y="668" font-family="'Outfit', sans-serif" font-size="10" font-weight="700" fill="var(--text-main)" text-anchor="middle">srcb</text>
+            <text x="1158" y="645" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">0:wr</text>
+            <text x="1158" y="690" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">1:imm</text>
+            <text x="1167" y="610" font-family="'Fira Code', monospace" font-size="8" fill="#818cf8" text-anchor="middle">ALUSrcE</text>
+        </g>
+
+        <!-- ALU Core (alu.v) -->
+        <g id="block-alu" class="block-interactive" ondblclick="openVerilogModal('alu.v')" onclick="inspectElement('alu')">
+            <polygon points="1230,480 1340,530 1340,580 1230,630 1230,570 1255,555 1230,540" fill="var(--fill-alu)" stroke="var(--stroke-alu)" stroke-width="2.5" />
+            <text x="1275" y="555" font-family="'Outfit', sans-serif" font-weight="800" font-size="14" fill="#10b981" text-anchor="middle">ALU</text>
+            <text x="1275" y="572" font-family="'Inter', sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">alu.v</text>
+            <text x="1245" y="515" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">srca</text>
+            <text x="1245" y="605" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">srcb</text>
+            <text x="1335" y="545" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)" text-anchor="end">aluresult</text>
+            <text x="1335" y="570" font-family="'Fira Code', monospace" font-size="8" fill="#f43f5e" text-anchor="end">Zero</text>
+        </g>
+
+        <!-- Branch Adder (pcaddbranch) -->
+        <g id="block-pcaddbranch" class="block-interactive" ondblclick="openVerilogModal('adder.v')" onclick="inspectElement('pcaddbranch')">
+            <rect x="1190" y="320" width="100" height="70" rx="10" fill="var(--fill-helper)" stroke="var(--stroke-helper)" stroke-width="2" />
+            <text x="1240" y="348" font-family="'Outfit', sans-serif" font-weight="700" font-size="11" fill="var(--text-main)" text-anchor="middle">Branch Adder</text>
+            <text x="1240" y="365" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)" text-anchor="middle">pcaddbranch</text>
+            <text x="1200" y="375" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">PCE</text>
+            <text x="1280" y="375" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)" text-anchor="end">PCTargetE</text>
+        </g>
+
+        <!-- Custom 64-Cycle Matmul Coprocessor (matmul.v) -->
+        <g id="block-matmul" class="block-interactive" ondblclick="openVerilogModal('matmul.v')" onclick="inspectElement('matmul')">
+            <rect x="1070" y="780" width="370" height="260" rx="16" fill="var(--fill-matmul)" stroke="var(--stroke-matmul)" stroke-width="2.8" />
+            <text x="1090" y="810" font-family="'Outfit', sans-serif" font-weight="800" font-size="15" fill="#f59e0b">Hardware Matmul Engine (matmul.v)</text>
+            <text x="1090" y="828" font-family="'Inter', sans-serif" font-size="10" fill="var(--text-muted)">64-Cycle 4x4 Integer Matrix Multiplier • Memory Bus Hijacker</text>
+            
+            <!-- Base Address Registers Box -->
+            <rect x="1090" y="845" width="150" height="95" rx="6" fill="#f59e0b" fill-opacity="0.1" stroke="#f59e0b" stroke-opacity="0.3" />
+            <text x="1165" y="865" font-family="'Fira Code', monospace" font-size="10" font-weight="700" fill="#f59e0b" text-anchor="middle">Base Pointers</text>
+            <text x="1100" y="885" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">baseA (rs1): 0x%0h</text>
+            <text x="1100" y="905" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">baseB (rs2): 0x%0h</text>
+            <text x="1100" y="925" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">baseC (rd):  0x%0h</text>
+
+            <!-- Internal Registers & MAC Core -->
+            <rect x="1255" y="845" width="165" height="95" rx="6" fill="#f59e0b" fill-opacity="0.1" stroke="#f59e0b" stroke-opacity="0.3" />
+            <text x="1337" y="865" font-family="'Fira Code', monospace" font-size="10" font-weight="700" fill="#f59e0b" text-anchor="middle">MAC Array &amp; RAM</text>
+            <text x="1265" y="885" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">matA[0..15] (16 words)</text>
+            <text x="1265" y="905" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">matB[0..15] (16 words)</text>
+            <text x="1265" y="925" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">matC[0..15] (16 words)</text>
+
+            <!-- FSM Cycle Timeline Bar -->
+            <rect x="1090" y="955" width="330" height="30" rx="4" fill="#0f172a" stroke="#f59e0b" stroke-opacity="0.4" />
+            <text x="1130" y="974" font-family="'Fira Code', monospace" font-size="9" fill="#38bdf8" text-anchor="middle">READ_A (16c)</text>
+            <text x="1210" y="974" font-family="'Fira Code', monospace" font-size="9" fill="#38bdf8" text-anchor="middle">READ_B (16c)</text>
+            <text x="1295" y="974" font-family="'Fira Code', monospace" font-size="9" fill="#10b981" text-anchor="middle">COMPUTE (16c)</text>
+            <text x="1380" y="974" font-family="'Fira Code', monospace" font-size="9" fill="#f59e0b" text-anchor="middle">WRITE_C (16c)</text>
+
+            <!-- Memory Bus Interface Pins -->
+            <text x="1100" y="1015" font-family="'Fira Code', monospace" font-size="9" fill="#f59e0b">matmul_busy ➔ Hazard Unit</text>
+            <text x="1100" y="1030" font-family="'Fira Code', monospace" font-size="9" fill="#f59e0b">Direct DMem Bus: addr, wdata, we, rdata ➔ Memory Arbiter</text>
+        </g>
+
+        <!-- =================================================================== -->
+        <!-- 8. PIPELINE REGISTER 3: EX / MEM (`regM` flopenrc)                 -->
+        <!-- =================================================================== -->
+        <g id="block-regM" class="block-interactive" ondblclick="openVerilogModal('flopenrc.v')" onclick="inspectElement('regM')">
+            <rect x="1555" y="240" width="70" height="660" rx="10" fill="var(--fill-pipe-reg)" stroke="var(--stroke-pipe-reg)" stroke-width="2.5" />
+            <text x="1590" y="270" font-family="'Outfit', sans-serif" font-weight="800" font-size="12" fill="var(--text-main)" text-anchor="middle">EX/MEM</text>
+            <text x="1590" y="285" font-family="'Inter', sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">flopenrc</text>
+            
+            <rect x="1562" y="310" width="56" height="50" rx="4" fill="#a855f7" fill-opacity="0.15" stroke="#a855f7" stroke-opacity="0.4" />
+            <text x="1590" y="335" font-family="'Fira Code', monospace" font-size="8" fill="#818cf8" text-anchor="middle">Controls</text>
+            <text x="1590" y="350" font-family="'Fira Code', monospace" font-size="7" fill="var(--text-muted)" text-anchor="middle">Reg/Mem/Res</text>
+
+            <rect x="1562" y="380" width="56" height="45" rx="4" fill="#3b82f6" fill-opacity="0.15" stroke="#3b82f6" stroke-opacity="0.4" />
+            <text x="1590" y="408" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">PCPlus4M</text>
+
+            <rect x="1562" y="520" width="56" height="55" rx="4" fill="#10b981" fill-opacity="0.15" stroke="#10b981" stroke-opacity="0.4" />
+            <text x="1590" y="545" font-family="'Fira Code', monospace" font-size="8" fill="#10b981" text-anchor="middle">aluresultM</text>
+            <text x="1590" y="562" font-family="'Fira Code', monospace" font-size="7" fill="var(--text-muted)" text-anchor="middle">(Fwd Path)</text>
+
+            <rect x="1562" y="600" width="56" height="50" rx="4" fill="#3b82f6" fill-opacity="0.15" stroke="#3b82f6" stroke-opacity="0.4" />
+            <text x="1590" y="630" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">writedataM</text>
+
+            <rect x="1562" y="670" width="56" height="45" rx="4" fill="#f43f5e" fill-opacity="0.15" stroke="#f43f5e" stroke-opacity="0.4" />
+            <text x="1590" y="698" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">RdM [4:0]</text>
+
+            <text x="1590" y="865" font-family="'Fira Code', monospace" font-size="8" fill="#f43f5e" text-anchor="middle">en=1'b1</text>
+            <text x="1590" y="880" font-family="'Fira Code', monospace" font-size="8" fill="#f43f5e" text-anchor="middle">clr=FlushMEM</text>
+        </g>
+
+        <!-- =================================================================== -->
+        <!-- 9. STAGE 4: MEMORY (MEM)                                            -->
+        <!-- =================================================================== -->
+        <!-- Memory Arbiter (top.v: Multiplexes CPU vs Matmul Memory Bus) -->
+        <g id="block-arbiter" class="block-interactive" ondblclick="openVerilogModal('top.v')" onclick="inspectElement('arbiter')">
+            <rect x="1660" y="490" width="90" height="230" rx="12" fill="var(--fill-matmul)" stroke="var(--stroke-matmul)" stroke-width="2.5" />
+            <text x="1705" y="525" font-family="'Outfit', sans-serif" font-weight="700" font-size="12" fill="#f59e0b" text-anchor="middle">Memory</text>
+            <text x="1705" y="542" font-family="'Outfit', sans-serif" font-weight="700" font-size="12" fill="#f59e0b" text-anchor="middle">Arbiter</text>
+            <text x="1705" y="560" font-family="'Inter', sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">top.v Mux</text>
+            <text x="1670" y="595" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">0: Pipe</text>
+            <text x="1670" y="635" font-family="'Fira Code', monospace" font-size="8" fill="#f59e0b">1: Matmul</text>
+            <text x="1705" y="695" font-family="'Fira Code', monospace" font-size="8" fill="#f59e0b" text-anchor="middle">sel=busy</text>
+        </g>
+
+        <!-- Data Memory (dmem.v) -->
+        <g id="block-dmem" class="block-interactive" ondblclick="openVerilogModal('dmem.v')" onclick="inspectElement('dmem')">
+            <rect x="1785" y="480" width="130" height="250" rx="14" fill="var(--fill-mem)" stroke="var(--stroke-mem)" stroke-width="2.5" />
+            <text x="1850" y="525" font-family="'Outfit', sans-serif" font-weight="700" font-size="15" fill="#3b82f6" text-anchor="middle">Data Memory</text>
+            <text x="1850" y="545" font-family="'Inter', sans-serif" font-size="10" fill="var(--text-muted)" text-anchor="middle">dmem.v (RAM)</text>
+            
+            <text x="1800" y="590" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">a (addr)</text>
+            <text x="1800" y="630" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">wd (data)</text>
+            <text x="1800" y="670" font-family="'Fira Code', monospace" font-size="9" fill="#3b82f6">we</text>
+            <text x="1800" y="705" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)">clk</text>
+            <text x="1905" y="605" font-family="'Fira Code', monospace" font-size="9" fill="var(--text-muted)" text-anchor="end">rd</text>
+        </g>
+
+        <!-- =================================================================== -->
+        <!-- 10. PIPELINE REGISTER 4: MEM / WB (`regW` flopr)                    -->
+        <!-- =================================================================== -->
+        <g id="block-regW" class="block-interactive" ondblclick="openVerilogModal('flopr.v')" onclick="inspectElement('regW')">
+            <rect x="2055" y="240" width="70" height="660" rx="10" fill="var(--fill-pipe-reg)" stroke="var(--stroke-pipe-reg)" stroke-width="2.5" />
+            <text x="2090" y="270" font-family="'Outfit', sans-serif" font-weight="800" font-size="12" fill="var(--text-main)" text-anchor="middle">MEM/WB</text>
+            <text x="2090" y="285" font-family="'Inter', sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">flopr</text>
+            
+            <rect x="2062" y="310" width="56" height="50" rx="4" fill="#a855f7" fill-opacity="0.15" stroke="#a855f7" stroke-opacity="0.4" />
+            <text x="2090" y="335" font-family="'Fira Code', monospace" font-size="8" fill="#818cf8" text-anchor="middle">Controls</text>
+            <text x="2090" y="350" font-family="'Fira Code', monospace" font-size="7" fill="var(--text-muted)" text-anchor="middle">RegWriteW</text>
+
+            <rect x="2062" y="380" width="56" height="45" rx="4" fill="#3b82f6" fill-opacity="0.15" stroke="#3b82f6" stroke-opacity="0.4" />
+            <text x="2090" y="408" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">PCPlus4W</text>
+
+            <rect x="2062" y="520" width="56" height="50" rx="4" fill="#10b981" fill-opacity="0.15" stroke="#10b981" stroke-opacity="0.4" />
+            <text x="2090" y="550" font-family="'Fira Code', monospace" font-size="8" fill="#10b981" text-anchor="middle">aluresultW</text>
+
+            <rect x="2062" y="590" width="56" height="50" rx="4" fill="#3b82f6" fill-opacity="0.15" stroke="#3b82f6" stroke-opacity="0.4" />
+            <text x="2090" y="620" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">readdataW</text>
+
+            <rect x="2062" y="660" width="56" height="45" rx="4" fill="#f43f5e" fill-opacity="0.15" stroke="#f43f5e" stroke-opacity="0.4" />
+            <text x="2090" y="688" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-main)" text-anchor="middle">RdW [4:0]</text>
+        </g>
+
+        <!-- =================================================================== -->
+        <!-- 11. STAGE 5: WRITEBACK (WB)                                         -->
+        <!-- =================================================================== -->
+        <!-- Result MUX (resultmux: 3:1) -->
+        <g id="block-resultmux" class="block-interactive" ondblclick="openVerilogModal('mux3.v')" onclick="inspectElement('resultmux')">
+            <polygon points="2190,510 2235,525 2235,655 2190,670" fill="var(--fill-helper)" stroke="var(--stroke-helper)" stroke-width="2.5" />
+            <text x="2212" y="595" font-family="'Outfit', sans-serif" font-size="11" font-weight="700" fill="var(--text-main)" text-anchor="middle">resultmux</text>
+            <text x="2202" y="540" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">0:ALU</text>
+            <text x="2202" y="595" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">1:DMem</text>
+            <text x="2202" y="645" font-family="'Fira Code', monospace" font-size="8" fill="var(--text-muted)">2:PC+4</text>
+            <text x="2212" y="500" font-family="'Fira Code', monospace" font-size="8" fill="#818cf8" text-anchor="middle">ResultSrcW</text>
+        </g>
+
+        <!-- =================================================================== -->
+        <!-- 12. WIRES & BUS CONNECTIONS                                         -->
+        <!-- =================================================================== -->
+        <g id="wires-group">
+            <!-- IF Stage Wires -->
+            <path id="wire-pcnext" class="wire" d="M 135 515 L 180 515" marker-end="url(#arrow-data)" onclick="inspectWire('wire-pcnext')" />
+            <path id="wire-pc" class="wire" d="M 260 515 L 285 515 L 285 355 L 310 355 M 285 515 L 310 515" marker-end="url(#arrow-data)" onclick="inspectWire('wire-pc')" />
+            <path id="wire-pcplus4f" class="wire" d="M 260 355 L 465 355" marker-end="url(#arrow-data)" onclick="inspectWire('wire-pcplus4f')" />
+            <path id="wire-instrf" class="wire" d="M 430 515 L 465 515" marker-end="url(#arrow-data)" onclick="inspectWire('wire-instrf')" />
+
+            <!-- IF/ID to ID Stage Wires -->
+            <path id="wire-pcplus4d" class="wire" d="M 535 355 L 955 408" marker-end="url(#arrow-data)" onclick="inspectWire('wire-pcplus4d')" />
+            <path id="wire-instrd" class="wire" d="M 535 515 L 560 515 M 545 515 L 545 320 L 580 320 M 545 515 L 545 770 L 665 770" marker-end="url(#arrow-data)" onclick="inspectWire('wire-instrd')" />
+            <path id="wire-pcd" class="wire" d="M 535 690 L 955 572" marker-end="url(#arrow-data)" onclick="inspectWire('wire-pcd')" />
+
+            <!-- ID Stage to ID/EX Wires -->
+            <path id="wire-rd1d" class="wire" d="M 800 540 L 955 462" marker-end="url(#arrow-data)" onclick="inspectWire('wire-rd1d')" />
+            <path id="wire-rd2d" class="wire" d="M 800 610 L 955 518" marker-end="url(#arrow-data)" onclick="inspectWire('wire-rd2d')" />
+            <path id="wire-immextd" class="wire" d="M 795 775 L 870 775 L 870 702 L 955 702" marker-end="url(#arrow-data)" onclick="inspectWire('wire-immextd')" />
+
+            <!-- EX Stage Wires -->
+            <path id="wire-srcae" class="wire" d="M 1105 500 L 1230 500" marker-end="url(#arrow-data)" onclick="inspectWire('wire-srcae')" />
+            <path id="wire-writedatae" class="wire" d="M 1105 630 L 1130 630 L 1130 650 L 1150 650 M 1130 630 L 1400 630 L 1400 625 L 1555 625" marker-end="url(#arrow-data)" onclick="inspectWire('wire-writedatae')" />
+            <path id="wire-srcbe" class="wire" d="M 1185 660 L 1210 660 L 1210 600 L 1230 600" marker-end="url(#arrow-data)" onclick="inspectWire('wire-srcbe')" />
+            <path id="wire-aluresulte" class="wire" d="M 1340 545 L 1555 545" marker-end="url(#arrow-data)" onclick="inspectWire('wire-aluresulte')" />
+            <path id="wire-zeroe" class="wire hazard-wire" d="M 1340 570 L 1430 570 L 1430 200" marker-end="url(#arrow-hazard)" onclick="inspectWire('wire-zeroe')" />
+            <path id="wire-pctargete" class="wire" d="M 1290 355 L 1320 355 L 1320 280 L 50 280 L 50 535 L 90 535" marker-end="url(#arrow-data)" onclick="inspectWire('wire-pctargete')" />
+
+            <!-- MEM Stage Wires -->
+            <path id="wire-aluresultm" class="wire" d="M 1625 545 L 1660 545 M 1730 545 L 2055 545" marker-end="url(#arrow-data)" onclick="inspectWire('wire-aluresultm')" />
+            <path id="wire-writedatam" class="wire" d="M 1625 625 L 1660 625" marker-end="url(#arrow-data)" onclick="inspectWire('wire-writedatam')" />
+            <path id="wire-dmemrd" class="wire" d="M 1915 605 L 2055 605" marker-end="url(#arrow-data)" onclick="inspectWire('wire-dmemrd')" />
+
+            <!-- WB Stage & Feedback Wires -->
+            <path id="wire-resultw" class="wire" d="M 2235 590 L 2270 590 L 2270 1200 L 630 1200 L 630 650 L 650 650" marker-end="url(#arrow-data)" onclick="inspectWire('wire-resultw')" />
+
+            <!-- Forwarding Paths (EX->EX and MEM->EX) -->
+            <path id="wire-fwda-mem" class="wire" d="M 1640 545 L 1640 430 L 1050 430 L 1050 525 L 1065 525" stroke="#10b981" marker-end="url(#arrow-data)" onclick="inspectWire('wire-fwda-mem')" />
+            <path id="wire-fwda-wb" class="wire" d="M 2260 590 L 2260 415 L 1035 415 L 1035 500 L 1065 500" stroke="#3b82f6" marker-end="url(#arrow-data)" onclick="inspectWire('wire-fwda-wb')" />
+            <path id="wire-fwdb-mem" class="wire" d="M 1640 545 L 1640 430 L 1050 430 L 1050 655 L 1065 655" stroke="#10b981" marker-end="url(#arrow-data)" onclick="inspectWire('wire-fwdb-mem')" />
+            <path id="wire-fwdb-wb" class="wire" d="M 2260 590 L 2260 415 L 1035 415 L 1035 630 L 1065 630" stroke="#3b82f6" marker-end="url(#arrow-data)" onclick="inspectWire('wire-fwdb-wb')" />
+
+            <!-- Matmul Connections -->
+            <path id="wire-matmul-busy" class="wire matmul-wire" d="M 1440 820 L 1490 820 L 1490 200" marker-end="url(#arrow-matmul)" onclick="inspectWire('wire-matmul-busy')" />
+            <path id="wire-matmul-dmem" class="wire matmul-wire" d="M 1440 920 L 1680 920 L 1680 720" marker-end="url(#arrow-matmul)" onclick="inspectWire('wire-matmul-dmem')" />
+
+            <!-- Hazard Control Lines -->
+            <path id="wire-stallpc" class="wire hazard-wire" d="M 530 188 L 220 188 L 220 470" marker-end="url(#arrow-hazard)" onclick="inspectWire('wire-stallpc')" />
+            <path id="wire-stallid" class="wire hazard-wire" d="M 545 188 L 500 188 L 500 240" marker-end="url(#arrow-hazard)" onclick="inspectWire('wire-stallid')" />
+            <path id="wire-stallex" class="wire hazard-wire" d="M 830 188 L 990 188 L 990 240" marker-end="url(#arrow-hazard)" onclick="inspectWire('wire-stallex')" />
+        </g>
+
+    </g>
+</svg>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Verilog Source Code Modal -->
+    <div id="verilog-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 hidden flex items-center justify-center p-6">
+        <div class="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="h-14 px-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 shrink-0">
+                <div class="flex items-center gap-3">
+                    <span class="text-xs font-mono px-2.5 py-1 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Verilog RTL</span>
+                    <select id="modal-file-select" onchange="loadSelectedVerilog(this.value)" class="bg-slate-800 text-xs font-mono text-white border border-slate-700 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500">
+                        <option value="adder.v">adder.v</option>
+<option value="alu.v">alu.v</option>
+<option value="aludec.v">aludec.v</option>
+<option value="controller.v">controller.v</option>
+<option value="datapath.v">datapath.v</option>
+<option value="dmem.v">dmem.v</option>
+<option value="extend.v">extend.v</option>
+<option value="flopenr.v">flopenr.v</option>
+<option value="flopenrc.v">flopenrc.v</option>
+<option value="flopr.v">flopr.v</option>
+<option value="hazard.v">hazard.v</option>
+<option value="imem.v">imem.v</option>
+<option value="maindec.v">maindec.v</option>
+<option value="matmul.v">matmul.v</option>
+<option value="mux2.v">mux2.v</option>
+<option value="mux3.v">mux3.v</option>
+<option value="regfile.v">regfile.v</option>
+<option value="riscvpipelined.v">riscvpipelined.v</option>
+<option value="top.v">top.v</option>
+                    </select>
+                </div>
+                <button onclick="closeVerilogModal()" class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <!-- Code Viewport -->
+            <div class="flex-1 p-5 overflow-auto custom-scrollbar bg-slate-950 font-mono text-xs">
+                <pre class="line-numbers"><code id="modal-code-body" class="language-verilog">// Loading...</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Embedded Verilog RTL Source Scripts -->
+    <script type="text/plain" id="vcode-adder.v">
+module adder #(
+    parameter WIDTH = 32
+) (
+    input  [WIDTH-1:0] a,
+    input  [WIDTH-1:0] b,
+    output [WIDTH-1:0] y
+);
+
+    assign y = a + b;
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-alu.v">
+module alu (
+    input  [31:0] srca,
+    input  [31:0] srcb,
+    input  [2:0]  alucontrol,
+    output reg [31:0] aluresult,
+    output        zero
+);
+
+    always @(*) begin
+        case (alucontrol)
+            3'b000:  aluresult = srca + srcb;
+            3'b001:  aluresult = srca - srcb;
+            3'b010:  aluresult = srca & srcb;
+            3'b011:  aluresult = srca | srcb;
+            3'b101:  aluresult = ($signed(srca) < $signed(srcb)) ? 32'b1 : 32'b0;
+            default: aluresult = 32'b0;
+        endcase
+    end
+
+    assign zero = (aluresult == 32'b0);
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-aludec.v">
+module aludec (
+    input [1:0] aluop,
+    input [2:0] funct3,
+    input funct7_5,
+    input op_5,
+    output reg [2:0] alucontrol
+);
+
+    always @* begin
+        alucontrol = 3'b000;
+        case (aluop)
+            2'b00: alucontrol = 3'b000;
+            2'b01: alucontrol = 3'b001;
+            2'b10: begin
+                case (funct3)
+                    3'b000: begin
+                        if (funct7_5 && op_5)
+                            alucontrol = 3'b001;
+                        else
+                            alucontrol = 3'b000;
+                    end
+                    3'b010: alucontrol = 3'b101;
+                    3'b110: alucontrol = 3'b011;
+                    3'b111: alucontrol = 3'b010;
+                    default: alucontrol = 3'b000;
+                endcase
+            end
+            default: alucontrol = 3'b000;
+        endcase
+    end
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-controller.v">
+module controller (
+    input        clk,
+    input        reset,
+    input  [6:0] op,
+    input  [2:0] funct3,
+    input        funct7_5,
+    input        ZeroE,
+    input        StallE,
+    input        FlushE,
+    input        FlushM,
+    output [2:0] ImmSrcD,
+    output       matmul_startD,
+    output       PCSrcE,
+    output [1:0] ResultSrcE,
+    output       ALUSrcE,
+    output [2:0] ALUControlE,
+    output       matmul_startE,
+    output       RegWriteM,
+    output       MemWriteM,
+    output [1:0] ResultSrcM,
+    output       RegWriteW,
+    output [1:0] ResultSrcW
+);
+
+    // Decode stage signals
+    wire       RegWriteD;
+    wire [1:0] ResultSrcD;
+    wire       MemWriteD;
+    wire       JumpD;
+    wire       BranchD;
+    wire       JalrD;
+    wire [1:0] ALUOpD;
+    wire [2:0] ALUControlD;
+    wire       ALUSrcD;
+
+    // Decode stage instantiation
+    maindec md (
+        .op           (op),
+        .regwrite     (RegWriteD),
+        .immsrc       (ImmSrcD),
+        .alusrc       (ALUSrcD),
+        .memwrite     (MemWriteD),
+        .resultsrc    (ResultSrcD),
+        .branch       (BranchD),
+        .jump         (JumpD),
+        .jalr         (JalrD),
+        .aluop        (ALUOpD),
+        .matmul_start (matmul_startD)
+    );
+
+    aludec ad (
+        .op_5       (op[5]),
+        .funct3     (funct3),
+        .funct7_5   (funct7_5),
+        .aluop      (ALUOpD),
+        .alucontrol (ALUControlD)
+    );
+
+    // Execute stage control signals & register
+    wire       RegWriteE;
+    wire       MemWriteE;
+    wire       JumpE;
+    wire       BranchE;
+    wire       JalrE;
+
+    flopenrc #(12) regE (
+        .clk   (clk),
+        .reset (reset),
+        .en    (~StallE),
+        .clear (FlushE),
+        .d     ({RegWriteD, ResultSrcD, MemWriteD, JumpD, BranchD, JalrD, ALUControlD, ALUSrcD, matmul_startD}),
+        .q     ({RegWriteE, ResultSrcE, MemWriteE, JumpE, BranchE, JalrE, ALUControlE, ALUSrcE, matmul_startE})
+    );
+
+    // Branch decision in EX stage
+    assign PCSrcE = (BranchE & ZeroE) | JumpE | JalrE;
+
+    // Memory stage control register
+    flopenrc #(4) regM (
+        .clk   (clk),
+        .reset (reset),
+        .en    (1'b1),
+        .clear (FlushM),
+        .d     ({RegWriteE, ResultSrcE, MemWriteE}),
+        .q     ({RegWriteM, ResultSrcM, MemWriteM})
+    );
+
+    // Writeback stage control register
+    flopr #(3) regW (
+        .clk   (clk),
+        .reset (reset),
+        .d     ({RegWriteM, ResultSrcM}),
+        .q     ({RegWriteW, ResultSrcW})
+    );
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-datapath.v">
+module datapath (
+    input  wire        clk,
+    input  wire        reset,
+
+    // Hazard unit controls
+    input  wire        StallPC,
+    input  wire        StallID,
+    input  wire        StallEX,
+    input  wire        FlushID,
+    input  wire        FlushEX,
+    input  wire        FlushMEM,
+    input  wire [1:0]  ForwardAE,
+    input  wire [1:0]  ForwardBE,
+    input  wire        matmul_rd_sel,
+    input  wire        matmul_latch_rs,
+
+    // Controller signals
+    input  wire [2:0]  ImmSrcD,
+    input  wire        matmul_startD,
+    input  wire        PCSrcE,
+    input  wire [1:0]  ResultSrcE,
+    input  wire        ALUSrcE,
+    input  wire [2:0]  ALUControlE,
+    input  wire        RegWriteW,
+    input  wire [1:0]  ResultSrcW,
+
+    // Memory interfaces
+    input  wire [31:0] instrF,
+    input  wire [31:0] readdataM,
+    output wire [31:0] PCF,
+    output wire [31:0] aluresultM,
+    output wire [31:0] writedataM,
+
+    // Outputs to Controller & Hazard Unit
+    output wire [6:0]  opD,
+    output wire [2:0]  funct3D,
+    output wire        funct7_5D,
+    output wire        ZeroE,
+    output wire [4:0]  Rs1D,
+    output wire [4:0]  Rs2D,
+    output wire [4:0]  Rs1E,
+    output wire [4:0]  Rs2E,
+    output wire [4:0]  RdE,
+    output wire [4:0]  RdM,
+    output wire [4:0]  RdW,
+
+    // Latched pointers for Matmul module
+    output reg  [31:0] rs1_val,
+    output reg  [31:0] rs2_val,
+    output reg  [31:0] rd_val
+);
+
+    // --- FETCH (IF) STAGE WIRES ---
+    wire [31:0] PCNextF;
+    wire [31:0] PCPlus4F;
+
+    // --- DECODE (ID) STAGE WIRES ---
+    wire [31:0] instrD;
+    wire [31:0] PCD;
+    wire [31:0] PCPlus4D;
+    wire [4:0]  a1D;
+    wire [4:0]  a2D;
+    wire [4:0]  RdD;
+    wire [31:0] rd1D;
+    wire [31:0] rd2D;
+    wire [31:0] immextD;
+
+    // --- EXECUTE (EX) STAGE WIRES ---
+    wire [31:0] rd1E;
+    wire [31:0] rd2E;
+    wire [31:0] PCE;
+    wire [31:0] immextE;
+    wire [31:0] PCPlus4E;
+    wire [31:0] srcaE;
+    wire [31:0] writedataE;
+    wire [31:0] srcbE;
+    wire [31:0] aluresultE;
+    wire [31:0] PCTargetE;
+
+    // --- MEMORY (MEM) STAGE WIRES ---
+    wire [31:0] PCPlus4M;
+
+    // --- WRITEBACK (WB) STAGE WIRES ---
+    wire [31:0] aluresultW;
+    wire [31:0] readdataW;
+    wire [31:0] PCPlus4W;
+    wire [31:0] ResultW;
+
+    // =========================================================================
+    // 1. FETCH (IF) STAGE
+    // =========================================================================
+    flopenr #(32) pcreg (
+        .clk   (clk),
+        .reset (reset),
+        .en    (~StallPC),
+        .d     (PCNextF),
+        .q     (PCF)
+    );
+
+    adder pcadd4 (
+        .a (PCF),
+        .b (32'd4),
+        .y (PCPlus4F)
+    );
+
+    mux2 #(32) pcmux (
+        .d0 (PCPlus4F),
+        .d1 (PCTargetE),
+        .s  (PCSrcE),
+        .y  (PCNextF)
+    );
+
+    // =========================================================================
+    // 2. IF / ID PIPELINE REGISTER
+    // =========================================================================
+    flopenrc #(96) regID (
+        .clk   (clk),
+        .reset (reset),
+        .en    (~StallID),
+        .clear (FlushID),
+        .d     ({instrF, PCF, PCPlus4F}),
+        .q     ({instrD, PCD, PCPlus4D})
+    );
+
+    // Decode instruction fields
+    assign opD       = instrD[6:0];
+    assign funct3D   = instrD[14:12];
+    assign funct7_5D = instrD[30];
+    assign Rs1D      = instrD[19:15];
+    assign Rs2D      = instrD[24:20];
+    assign RdD       = instrD[11:7];
+
+    // Regfile read address multiplexing for matmul (a1D selects rd during cycle 2 of matmul)
+    assign a1D = matmul_rd_sel ? RdE : instrD[19:15];
+    assign a2D = instrD[24:20];
+
+    regfile rf (
+        .clk (clk),
+        .we3 (RegWriteW),
+        .a1  (a1D),
+        .a2  (a2D),
+        .a3  (RdW),
+        .wd3 (ResultW),
+        .rd1 (rd1D),
+        .rd2 (rd2D)
+    );
+
+    extend ext (
+        .instr  (instrD[31:7]),
+        .immsrc (ImmSrcD),
+        .immext (immextD)
+    );
+
+    // Latch matmul base pointers
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            rs1_val <= 32'b0;
+            rs2_val <= 32'b0;
+            rd_val  <= 32'b0;
+        end else begin
+            if (matmul_latch_rs) begin
+                rs1_val <= srcaE;
+                rs2_val <= writedataE;
+            end
+            if (matmul_rd_sel) begin
+                rd_val  <= rd1D;
+            end
+        end
+    end
+
+    // =========================================================================
+    // 3. ID / EX PIPELINE REGISTER
+    // =========================================================================
+    flopenrc #(175) regE (
+        .clk   (clk),
+        .reset (reset),
+        .en    (~StallEX),
+        .clear (FlushEX),
+        .d     ({rd1D, rd2D, PCD, Rs1D, Rs2D, RdD, immextD, PCPlus4D}),
+        .q     ({rd1E, rd2E, PCE, Rs1E, Rs2E, RdE, immextE, PCPlus4E})
+    );
+
+    // Forwarding Muxes for ALU inputs
+    mux3 #(32) forwarda_mux (
+        .d0 (rd1E),
+        .d1 (ResultW),
+        .d2 (aluresultM),
+        .s  (ForwardAE),
+        .y  (srcaE)
+    );
+
+    mux3 #(32) forwardb_mux (
+        .d0 (rd2E),
+        .d1 (ResultW),
+        .d2 (aluresultM),
+        .s  (ForwardBE),
+        .y  (writedataE)
+    );
+
+    mux2 #(32) srcbmux (
+        .d0 (writedataE),
+        .d1 (immextE),
+        .s  (ALUSrcE),
+        .y  (srcbE)
+    );
+
+    alu alunit (
+        .srca       (srcaE),
+        .srcb       (srcbE),
+        .alucontrol (ALUControlE),
+        .aluresult  (aluresultE),
+        .zero       (ZeroE)
+    );
+
+    adder pcaddbranch (
+        .a (PCE),
+        .b (immextE),
+        .y (PCTargetE)
+    );
+
+    // =========================================================================
+    // 4. EX / MEM PIPELINE REGISTER
+    // =========================================================================
+    flopenrc #(101) regM (
+        .clk   (clk),
+        .reset (reset),
+        .en    (1'b1),
+        .clear (FlushMEM),
+        .d     ({aluresultE, writedataE, RdE, PCPlus4E}),
+        .q     ({aluresultM, writedataM, RdM, PCPlus4M})
+    );
+
+    // =========================================================================
+    // 5. MEM / WB PIPELINE REGISTER
+    // =========================================================================
+    flopr #(101) regW (
+        .clk   (clk),
+        .reset (reset),
+        .d     ({aluresultM, readdataM, RdM, PCPlus4M}),
+        .q     ({aluresultW, readdataW, RdW, PCPlus4W})
+    );
+
+    mux3 #(32) resultmux (
+        .d0 (aluresultW),
+        .d1 (readdataW),
+        .d2 (PCPlus4W),
+        .s  (ResultSrcW),
+        .y  (ResultW)
+    );
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-dmem.v">
+module dmem (
+    input clk,
+    input we,
+    input [31:0] a,
+    input [31:0] wd,
+    output [31:0] rd
+);
+
+    reg [31:0] RAM [0:255];
+
+    assign rd = RAM[a[31:2]];
+
+    always @(posedge clk) begin
+        if (we) begin
+            RAM[a[31:2]] <= wd;
+        end
+    end
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-extend.v">
+module extend (
+    input  [31:7] instr,
+    input  [2:0]  immsrc,
+    output reg [31:0] immext
+);
+
+    always @(*) begin
+        case (immsrc)
+            3'b000:  immext = {{20{instr[31]}}, instr[31:20]};
+            3'b001:  immext = {{20{instr[31]}}, instr[31:25], instr[11:7]};
+            3'b010:  immext = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
+            3'b011:  immext = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
+            3'b100:  immext = {instr[31:12], 12'b0};
+            default: immext = 32'bx;
+        endcase
+    end
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-flopenr.v">
+module flopenr #(
+    parameter WIDTH = 32
+) (
+    input                  clk,
+    input                  reset,
+    input                  en,
+    input      [WIDTH-1:0] d,
+    output reg [WIDTH-1:0] q
+);
+
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            q <= 0;
+        end else if (en) begin
+            q <= d;
+        end
+    end
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-flopenrc.v">
+module flopenrc #(
+    parameter WIDTH = 32
+) (
+    input                  clk,
+    input                  reset,
+    input                  en,
+    input                  clear,
+    input      [WIDTH-1:0] d,
+    output reg [WIDTH-1:0] q
+);
+
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            q <= 0;
+        end else if (clear) begin
+            q <= 0;
+        end else if (en) begin
+            q <= d;
+        end
+    end
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-flopr.v">
+module flopr #(
+    parameter WIDTH = 32
+) (
+    input                  clk,
+    input                  reset,
+    input      [WIDTH-1:0] d,
+    output reg [WIDTH-1:0] q
+);
+
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            q <= 0;
+        end else begin
+            q <= d;
+        end
+    end
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-hazard.v">
+module hazard (
+    input        clk,
+    input        reset,
+    input  [4:0] Rs1D,
+    input  [4:0] Rs2D,
+    input  [4:0] Rs1E,
+    input  [4:0] Rs2E,
+    input  [4:0] RdE,
+    input  [4:0] RdM,
+    input  [4:0] RdW,
+    input        RegWriteM,
+    input        RegWriteW,
+    input  [1:0] ResultSrcE,
+    input        PCSrcE,
+    input        matmul_startD,
+    input        matmul_startE,
+    input        matmul_busy,
+    output reg [1:0] ForwardAE,
+    output reg [1:0] ForwardBE,
+    output       StallPC,
+    output       StallID,
+    output       StallEX,
+    output       FlushID,
+    output       FlushEX,
+    output       FlushMEM,
+    output       matmul_rd_sel,
+    output       matmul_latch_rs
+);
+
+    // 1. Data Forwarding Unit (MEM > WB > ID/EX)
+    always @* begin
+        if ((Rs1E != 5'b0) && (Rs1E == RdM) && RegWriteM)
+            ForwardAE = 2'b10;
+        else if ((Rs1E != 5'b0) && (Rs1E == RdW) && RegWriteW)
+            ForwardAE = 2'b01;
+        else
+            ForwardAE = 2'b00;
+    end
+
+    always @* begin
+        if ((Rs2E != 5'b0) && (Rs2E == RdM) && RegWriteM)
+            ForwardBE = 2'b10;
+        else if ((Rs2E != 5'b0) && (Rs2E == RdW) && RegWriteW)
+            ForwardBE = 2'b01;
+        else
+            ForwardBE = 2'b00;
+    end
+
+    // 2. Load-Use Stall Unit
+    wire lwstall;
+    assign lwstall = ResultSrcE[0] & ((Rs1D == RdE) | (Rs2D == RdE)) & (RdE != 5'b0);
+
+    // 3. Matmul Stall, Freeze & Drain State Machine (EX stage)
+    localparam M_IDLE      = 3'd0;
+    localparam M_DRAIN1    = 3'd1;
+    localparam M_DRAIN2    = 3'd2;
+    localparam M_WAIT_BUSY = 3'd3;
+    localparam M_RUNNING   = 3'd4;
+    localparam M_DONE      = 3'd5;
+    
+    reg [2:0] m_state;
+
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            m_state <= M_IDLE;
+        end else begin
+            case (m_state)
+                M_IDLE:      if (matmul_startE) m_state <= M_DRAIN1;
+                M_DRAIN1:    m_state <= M_DRAIN2;
+                M_DRAIN2:    m_state <= M_WAIT_BUSY;
+                M_WAIT_BUSY: if (matmul_busy) m_state <= M_RUNNING;
+                M_RUNNING:   if (!matmul_busy) m_state <= M_DONE;
+                M_DONE:      m_state <= M_IDLE;
+                default:     m_state <= M_IDLE;
+            endcase
+        end
+    end
+
+    wire matmul_stall;
+    assign matmul_stall = (matmul_startE && m_state != M_DONE) || (m_state != M_IDLE && m_state != M_DONE);
+    
+    assign matmul_latch_rs = (m_state == M_IDLE && matmul_startE);
+    assign matmul_rd_sel   = (m_state == M_DRAIN1);
+    
+    assign FlushMEM = 1'b0;
+
+    // 4. Combined Stall & Flush Controls
+    assign StallPC = lwstall | matmul_stall;
+    assign StallID = lwstall | matmul_stall;
+    assign StallEX = matmul_stall;
+
+    assign FlushID = (PCSrcE != 1'b0);
+    assign FlushEX = lwstall | (PCSrcE != 1'b0);
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-imem.v">
+module imem (
+    input [31:0] a,
+    output [31:0] rd
+);
+
+    reg [31:0] RAM [0:255];
+
+    integer i;
+    initial begin
+        for (i = 0; i < 256; i = i + 1) begin
+            RAM[i] = 32'h00000013; // NOP instruction (addi x0, x0, 0)
+        end
+    end
+
+    assign rd = RAM[a[31:2]];
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-maindec.v">
+module maindec (
+    input  [6:0] op,
+    output reg   regwrite,
+    output reg [2:0] immsrc,
+    output reg   alusrc,
+    output reg   memwrite,
+    output reg [1:0] resultsrc,
+    output reg   branch,
+    output reg   jump,
+    output reg   jalr,
+    output reg [1:0] aluop,
+    output reg   matmul_start
+);
+
+    always @* begin
+        // Comprehensive default assignment to prevent latches
+        regwrite     = 1'b0;
+        immsrc       = 3'b000;
+        alusrc       = 1'b0;
+        memwrite     = 1'b0;
+        resultsrc    = 2'b00;
+        branch       = 1'b0;
+        jump         = 1'b0;
+        jalr         = 1'b0;
+        aluop        = 2'b00;
+        matmul_start = 1'b0;
+
+        case (op)
+            7'b0000011: {regwrite, immsrc, alusrc, memwrite, resultsrc, branch, jump, jalr, aluop, matmul_start} = 14'b1_000_1_0_01_0_0_0_00_0; // lw
+            7'b0100011: {regwrite, immsrc, alusrc, memwrite, resultsrc, branch, jump, jalr, aluop, matmul_start} = 14'b0_001_1_1_00_0_0_0_00_0; // sw
+            7'b0110011: {regwrite, immsrc, alusrc, memwrite, resultsrc, branch, jump, jalr, aluop, matmul_start} = 14'b1_000_0_0_00_0_0_0_10_0; // R-type
+            7'b1100011: {regwrite, immsrc, alusrc, memwrite, resultsrc, branch, jump, jalr, aluop, matmul_start} = 14'b0_010_0_0_00_1_0_0_01_0; // beq
+            7'b0010011: {regwrite, immsrc, alusrc, memwrite, resultsrc, branch, jump, jalr, aluop, matmul_start} = 14'b1_000_1_0_00_0_0_0_10_0; // I-type
+            7'b1101111: {regwrite, immsrc, alusrc, memwrite, resultsrc, branch, jump, jalr, aluop, matmul_start} = 14'b1_011_0_0_10_0_1_0_00_0; // jal
+            7'b1100111: {regwrite, immsrc, alusrc, memwrite, resultsrc, branch, jump, jalr, aluop, matmul_start} = 14'b1_000_1_0_10_0_0_1_00_0; // jalr
+            7'b0110111: {regwrite, immsrc, alusrc, memwrite, resultsrc, branch, jump, jalr, aluop, matmul_start} = 14'b1_100_1_0_00_0_0_0_00_0; // lui
+            7'b0001011: {regwrite, immsrc, alusrc, memwrite, resultsrc, branch, jump, jalr, aluop, matmul_start} = 14'b0_000_0_0_00_0_0_0_00_1; // matmul
+            default:    {regwrite, immsrc, alusrc, memwrite, resultsrc, branch, jump, jalr, aluop, matmul_start} = 14'b0_000_0_0_00_0_0_0_00_0;
+        endcase
+    end
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-matmul.v">
+// Custom 64-Cycle 4x4 32-bit Integer Matrix Multiplication Execution Engine
+module matmul (
+    input  wire        clk,
+    input  wire        reset,
+    input  wire        matmul_start,
+    input  wire [31:0] rs1_val,
+    input  wire [31:0] rs2_val,
+    input  wire [31:0] rd_val,
+    output wire        matmul_busy,
+    output reg         matmul_dmem_en,
+    output reg         matmul_dmem_we,
+    output reg  [31:0] matmul_dmem_addr,
+    output reg  [31:0] matmul_dmem_wdata,
+    input  wire [31:0] matmul_dmem_rdata
+);
+
+    // State definitions
+    localparam IDLE    = 3'b000;
+    localparam READ_A  = 3'b001;
+    localparam READ_B  = 3'b010;
+    localparam COMPUTE = 3'b011;
+    localparam WRITE_C = 3'b100;
+
+    reg [2:0] state;
+    reg [3:0] counter;
+
+    // Base address registers
+    reg [31:0] baseA;
+    reg [31:0] baseB;
+    reg [31:0] baseC;
+
+    // Internal matrix registers (4x4 = 16 elements each)
+    reg [31:0] matA [0:15];
+    reg [31:0] matB [0:15];
+    reg [31:0] matC [0:15];
+
+    // Helper wires for COMPUTE phase indexing
+    wire [1:0] comp_i = counter[3:2];
+    wire [1:0] comp_j = counter[1:0];
+
+    // Busy signal is high while processing (not in IDLE)
+    assign matmul_busy = (state != IDLE);
+
+    // FSM and Datapath Logic
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            state   <= IDLE;
+            counter <= 4'd0;
+            baseA   <= 32'd0;
+            baseB   <= 32'd0;
+            baseC   <= 32'd0;
+        end else begin
+            case (state)
+                IDLE: begin
+                    if (matmul_start) begin
+                        $display("[MATMUL_RTL] time=%0t Starting Matmul! rs1_val=%0d (0x%0h), rs2_val=%0d (0x%0h), rd_val=%0d (0x%0h)",
+                                 $time, rs1_val, rs1_val, rs2_val, rs2_val, rd_val, rd_val);
+                        state   <= READ_A;
+                        counter <= 4'd0;
+                        baseA   <= rs1_val;
+                        baseB   <= rs2_val;
+                        baseC   <= rd_val;
+                    end
+                end
+
+                READ_A: begin
+                    matA[counter] <= matmul_dmem_rdata;
+                    if (counter == 4'd15) begin
+                        state   <= READ_B;
+                        counter <= 4'd0;
+                    end else begin
+                        counter <= counter + 4'd1;
+                    end
+                end
+
+                READ_B: begin
+                    matB[counter] <= matmul_dmem_rdata;
+                    if (counter == 4'd15) begin
+                        state   <= COMPUTE;
+                        counter <= 4'd0;
+                    end else begin
+                        counter <= counter + 4'd1;
+                    end
+                end
+
+                COMPUTE: begin
+                    matC[counter] <= matA[{comp_i, 2'b00}] * matB[{2'b00, comp_j}]
+                                   + matA[{comp_i, 2'b01}] * matB[{2'b01, comp_j}]
+                                   + matA[{comp_i, 2'b10}] * matB[{2'b10, comp_j}]
+                                   + matA[{comp_i, 2'b11}] * matB[{2'b11, comp_j}];
+                    if (counter == 4'd15) begin
+                        state   <= WRITE_C;
+                        counter <= 4'd0;
+                    end else begin
+                        counter <= counter + 4'd1;
+                    end
+                end
+
+                WRITE_C: begin
+                    if (counter == 4'd15) begin
+                        state   <= IDLE;
+                        counter <= 4'd0;
+                    end else begin
+                        counter <= counter + 4'd1;
+                    end
+                end
+
+                default: state <= IDLE;
+            endcase
+        end
+    end
+
+    // Combinational Memory Interface Driving
+    always @(*) begin
+        case (state)
+            READ_A: begin
+                matmul_dmem_en   = 1'b1;
+                matmul_dmem_we   = 1'b0;
+                matmul_dmem_addr = baseA + ({28'd0, counter} << 2);
+                matmul_dmem_wdata= 32'd0;
+            end
+            READ_B: begin
+                matmul_dmem_en   = 1'b1;
+                matmul_dmem_we   = 1'b0;
+                matmul_dmem_addr = baseB + ({28'd0, counter} << 2);
+                matmul_dmem_wdata= 32'd0;
+            end
+            WRITE_C: begin
+                matmul_dmem_en   = 1'b1;
+                matmul_dmem_we   = 1'b1;
+                matmul_dmem_addr = baseC + ({28'd0, counter} << 2);
+                matmul_dmem_wdata= matC[counter];
+            end
+            default: begin
+                matmul_dmem_en   = 1'b0;
+                matmul_dmem_we   = 1'b0;
+                matmul_dmem_addr = 32'd0;
+                matmul_dmem_wdata= 32'd0;
+            end
+        endcase
+    end
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-mux2.v">
+module mux2 #(
+    parameter WIDTH = 32
+) (
+    input  [WIDTH-1:0] d0,
+    input  [WIDTH-1:0] d1,
+    input              s,
+    output [WIDTH-1:0] y
+);
+
+    assign y = s ? d1 : d0;
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-mux3.v">
+module mux3 #(
+    parameter WIDTH = 32
+) (
+    input  [WIDTH-1:0] d0,
+    input  [WIDTH-1:0] d1,
+    input  [WIDTH-1:0] d2,
+    input  [1:0]       s,
+    output [WIDTH-1:0] y
+);
+
+    assign y = (s == 2'b00) ? d0 :
+               (s == 2'b01) ? d1 : d2;
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-regfile.v">
+module regfile (
+    input clk,
+    input we3,
+    input [4:0] a1,
+    input [4:0] a2,
+    input [4:0] a3,
+    input [31:0] wd3,
+    output [31:0] rd1,
+    output [31:0] rd2
+);
+
+  reg [31:0] rf [0:31];
+
+  // Asynchronous reads with internal write-through for simultaneous WB write and ID read
+  assign rd1 = (a1 != 5'b0) ? ((a1 == a3 && we3) ? wd3 : rf[a1]) : 32'b0;
+  assign rd2 = (a2 != 5'b0) ? ((a2 == a3 && we3) ? wd3 : rf[a2]) : 32'b0;
+
+  // Synchronous write on positive edge of clock
+  always @(posedge clk) begin
+    if (we3 && (a3 != 5'b0)) begin
+      rf[a3] <= wd3;
+    end
+  end
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-riscvpipelined.v">
+// 5-Stage Pipelined RISC-V RV32I Processor Core with Custom Matmul Engine
+module riscvpipelined (
+    input  wire        clk,
+    input  wire        reset,
+    output wire [31:0] pc,
+    input  wire [31:0] instr,
+    output wire        mem_we,
+    output wire [31:0] mem_addr,
+    output wire [31:0] mem_wdata,
+    input  wire [31:0] mem_rdata,
+    output wire        matmul_busy,
+    output wire        matmul_dmem_en,
+    output wire        matmul_dmem_we,
+    output wire [31:0] matmul_dmem_addr,
+    output wire [31:0] matmul_dmem_wdata,
+    input  wire [31:0] matmul_dmem_rdata
+);
+
+    // Controller <-> Datapath & Hazard wires
+    wire [2:0] ImmSrcD;
+    wire       matmul_startD;
+    wire       PCSrcE;
+    wire [1:0] ResultSrcE;
+    wire       ALUSrcE;
+    wire [2:0] ALUControlE;
+    wire       matmul_startE;
+    wire       RegWriteM;
+    wire       MemWriteM;
+    wire [1:0] ResultSrcM;
+    wire       RegWriteW;
+    wire [1:0] ResultSrcW;
+
+    // Datapath -> Controller & Hazard wires
+    wire [6:0] opD;
+    wire [2:0] funct3D;
+    wire       funct7_5D;
+    wire       ZeroE;
+    wire [4:0] Rs1D, Rs2D, Rs1E, Rs2E, RdE, RdM, RdW;
+    wire [31:0] rs1_val, rs2_val, rd_val;
+
+    // Hazard -> Datapath & Controller wires
+    wire [1:0] ForwardAE, ForwardBE;
+    wire       StallPC, StallID, StallEX;
+    wire       FlushID, FlushEX, FlushMEM;
+    wire       matmul_rd_sel, matmul_latch_rs;
+
+    // Matmul start pulse generation
+    reg matmul_start_reg;
+    always @(posedge clk or posedge reset) begin
+        if (reset)
+            matmul_start_reg <= 1'b0;
+        else
+            matmul_start_reg <= matmul_rd_sel;
+    end
+
+    // Assign CPU memory outputs
+    assign mem_we   = MemWriteM;
+    assign mem_addr = mem_addr_internal;
+    assign mem_wdata= mem_wdata_internal;
+    assign pc       = pc_internal;
+
+    wire [31:0] pc_internal;
+    wire [31:0] mem_addr_internal;
+    wire [31:0] mem_wdata_internal;
+
+    // Controller Unit
+    controller c (
+        .clk           (clk),
+        .reset         (reset),
+        .op            (opD),
+        .funct3        (funct3D),
+        .funct7_5      (funct7_5D),
+        .ZeroE         (ZeroE),
+        .StallE        (StallEX),
+        .FlushE        (FlushEX),
+        .FlushM        (FlushMEM),
+        .ImmSrcD       (ImmSrcD),
+        .matmul_startD (matmul_startD),
+        .PCSrcE        (PCSrcE),
+        .ResultSrcE    (ResultSrcE),
+        .ALUSrcE       (ALUSrcE),
+        .ALUControlE   (ALUControlE),
+        .matmul_startE (matmul_startE),
+        .RegWriteM     (RegWriteM),
+        .MemWriteM     (MemWriteM),
+        .ResultSrcM    (ResultSrcM),
+        .RegWriteW     (RegWriteW),
+        .ResultSrcW    (ResultSrcW)
+    );
+
+    // Datapath Unit
+    datapath dp (
+        .clk           (clk),
+        .reset         (reset),
+        .StallPC       (StallPC),
+        .StallID       (StallID),
+        .StallEX       (StallEX),
+        .FlushID       (FlushID),
+        .FlushEX       (FlushEX),
+        .FlushMEM      (FlushMEM),
+        .ForwardAE     (ForwardAE),
+        .ForwardBE     (ForwardBE),
+        .matmul_rd_sel (matmul_rd_sel),
+        .matmul_latch_rs (matmul_latch_rs),
+        .ImmSrcD       (ImmSrcD),
+        .matmul_startD (matmul_startD),
+        .PCSrcE        (PCSrcE),
+        .ResultSrcE    (ResultSrcE),
+        .ALUSrcE       (ALUSrcE),
+        .ALUControlE   (ALUControlE),
+        .RegWriteW     (RegWriteW),
+        .ResultSrcW    (ResultSrcW),
+        .instrF        (instr),
+        .readdataM     (mem_rdata),
+        .PCF           (pc_internal),
+        .aluresultM    (mem_addr_internal),
+        .writedataM    (mem_wdata_internal),
+        .opD           (opD),
+        .funct3D       (funct3D),
+        .funct7_5D     (funct7_5D),
+        .ZeroE         (ZeroE),
+        .Rs1D          (Rs1D),
+        .Rs2D          (Rs2D),
+        .Rs1E          (Rs1E),
+        .Rs2E          (Rs2E),
+        .RdE           (RdE),
+        .RdM           (RdM),
+        .RdW           (RdW),
+        .rs1_val       (rs1_val),
+        .rs2_val       (rs2_val),
+        .rd_val        (rd_val)
+    );
+
+    // Hazard Unit
+    hazard hz (
+        .clk           (clk),
+        .reset         (reset),
+        .Rs1D          (Rs1D),
+        .Rs2D          (Rs2D),
+        .Rs1E          (Rs1E),
+        .Rs2E          (Rs2E),
+        .RdE           (RdE),
+        .RdM           (RdM),
+        .RdW           (RdW),
+        .RegWriteM     (RegWriteM),
+        .RegWriteW     (RegWriteW),
+        .ResultSrcE    (ResultSrcE),
+        .PCSrcE        (PCSrcE),
+        .matmul_startD (matmul_startD),
+        .matmul_startE (matmul_startE),
+        .matmul_busy   (matmul_busy),
+        .ForwardAE     (ForwardAE),
+        .ForwardBE     (ForwardBE),
+        .StallPC       (StallPC),
+        .StallID       (StallID),
+        .StallEX       (StallEX),
+        .FlushID       (FlushID),
+        .FlushEX       (FlushEX),
+        .FlushMEM      (FlushMEM),
+        .matmul_rd_sel (matmul_rd_sel),
+        .matmul_latch_rs (matmul_latch_rs)
+    );
+
+    // Matmul Accelerator Engine
+    matmul mm (
+        .clk               (clk),
+        .reset             (reset),
+        .matmul_start      (matmul_start_reg),
+        .rs1_val           (rs1_val),
+        .rs2_val           (rs2_val),
+        .rd_val            (rd_val),
+        .matmul_busy       (matmul_busy),
+        .matmul_dmem_en    (matmul_dmem_en),
+        .matmul_dmem_we    (matmul_dmem_we),
+        .matmul_dmem_addr  (matmul_dmem_addr),
+        .matmul_dmem_wdata (matmul_dmem_wdata),
+        .matmul_dmem_rdata (matmul_dmem_rdata)
+    );
+
+endmodule
+
+</script>
+<script type="text/plain" id="vcode-top.v">
+module top (
+    input         clk,
+    input         reset,
+    output [31:0] writedata,
+    output [31:0] dataadr,
+    output        memwrite
+);
+
+    wire [31:0] pc;
+    wire [31:0] instr;
+
+    // CPU Data Memory Interface Wires
+    wire        mem_we;
+    wire [31:0] mem_addr;
+    wire [31:0] mem_wdata;
+    wire [31:0] mem_rdata;
+
+    // Matmul Direct Memory Interface Wires
+    wire        matmul_busy;
+    wire        matmul_dmem_en;
+    wire        matmul_dmem_we;
+    wire [31:0] matmul_dmem_addr;
+    wire [31:0] matmul_dmem_wdata;
+    wire [31:0] matmul_dmem_rdata;
+
+    // Memory Arbiter Multiplexed Wires
+    wire        dmem_we;
+    wire [31:0] dmem_addr;
+    wire [31:0] dmem_wdata;
+    wire [31:0] dmem_rdata;
+
+    // Memory Arbiter Multiplexing
+    assign dmem_we            = matmul_busy ? matmul_dmem_we   : mem_we;
+    assign dmem_addr          = matmul_busy ? matmul_dmem_addr : mem_addr;
+    assign dmem_wdata         = matmul_busy ? matmul_dmem_wdata: mem_wdata;
+    assign mem_rdata          = dmem_rdata;
+    assign matmul_dmem_rdata  = dmem_rdata;
+
+    // Top Level Outputs for Testbench Monitoring
+    assign memwrite  = dmem_we;
+    assign dataadr   = dmem_addr;
+    assign writedata = dmem_wdata;
+
+    // Instantiate 5-stage Pipelined Core
+    riscvpipelined rvpipelined (
+        .clk               (clk),
+        .reset             (reset),
+        .pc                (pc),
+        .instr             (instr),
+        .mem_we            (mem_we),
+        .mem_addr          (mem_addr),
+        .mem_wdata         (mem_wdata),
+        .mem_rdata         (mem_rdata),
+        .matmul_busy       (matmul_busy),
+        .matmul_dmem_en    (matmul_dmem_en),
+        .matmul_dmem_we    (matmul_dmem_we),
+        .matmul_dmem_addr  (matmul_dmem_addr),
+        .matmul_dmem_wdata (matmul_dmem_wdata),
+        .matmul_dmem_rdata (matmul_dmem_rdata)
+    );
+
+    // Instantiate Instruction Memory
+    imem imem (
+        .a  (pc),
+        .rd (instr)
+    );
+
+    // Instantiate Data Memory
+    dmem dmem (
+        .clk (clk),
+        .we  (dmem_we),
+        .a   (dmem_addr),
+        .wd  (dmem_wdata),
+        .rd  (dmem_rdata)
+    );
+
+endmodule
+
+</script>
+
+    <!-- Embedded Javascript Logic -->
+    <script>
+        
+        // Global State
+        let currentTrace = null;
+        let currentStep = 0;
+        let isPlaying = false;
+        let playInterval = null;
+
+        // Zoom/Pan State
+        let scale = 0.65;
+        let pointX = 0;
+        let pointY = 0;
+        let startX = 0;
+        let startY = 0;
+        let isPanning = false;
+
+        const viewportGroup = document.getElementById('viewport-group');
+        const svgContainer = document.getElementById('svg-viewport-wrapper');
+
+        // Initial setup and fit
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(zoomToFit, 100);
+        });
+
+        // Pan and Zoom Event Listeners
+        svgContainer.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.block-interactive') || e.target.closest('.wire')) return;
+            isPanning = true;
+            startX = e.clientX - pointX;
+            startY = e.clientY - pointY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            pointX = e.clientX - startX;
+            pointY = e.clientY - startY;
+            updateTransform();
+        });
+
+        window.addEventListener('mouseup', () => { isPanning = false; });
+
+        svgContainer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const xs = (e.clientX - pointX) / scale;
+            const ys = (e.clientY - pointY) / scale;
+            const delta = -e.deltaY;
+            if (delta > 0) {
+                scale *= 1.12;
+            } else {
+                scale /= 1.12;
+            }
+            scale = Math.min(Math.max(0.35, scale), 3.5);
+            pointX = e.clientX - xs * scale;
+            pointY = e.clientY - ys * scale;
+            updateTransform();
+        });
+
+        function updateTransform() {
+            viewportGroup.setAttribute('transform', `matrix(${scale} 0 0 ${scale} ${pointX} ${pointY})`);
+        }
+
+        function zoomIn() { scale = Math.min(scale * 1.2, 3.5); updateTransform(); }
+        function zoomOut() { scale = Math.max(scale / 1.2, 0.35); updateTransform(); }
+        function resetZoom() { scale = 1; pointX = 0; pointY = 0; updateTransform(); }
+        function zoomToFit() {
+            const rect = svgContainer.getBoundingClientRect();
+            const fitScale = Math.min(rect.width / 2480, rect.height / 1250) * 0.98;
+            scale = Math.max(0.55, Math.min(fitScale, 1.1));
+            pointX = (rect.width - 2480 * scale) / 2;
+            pointY = (rect.height - 1250 * scale) / 2;
+            updateTransform();
+        }
+
+        // Sidebar Segmented Tab Switching
+        function switchSidebarTab(tab) {
+            const tracesTab = document.getElementById('tab-content-traces');
+            const inspectorTab = document.getElementById('tab-content-inspector');
+            const btnTraces = document.getElementById('tab-btn-traces');
+            const btnInspector = document.getElementById('tab-btn-inspector');
+
+            if (tab === 'inspector') {
+                tracesTab.classList.add('hidden');
+                inspectorTab.classList.remove('hidden');
+                btnInspector.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5";
+                btnTraces.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all flex items-center justify-center gap-1.5";
+            } else {
+                inspectorTab.classList.add('hidden');
+                tracesTab.classList.remove('hidden');
+                btnTraces.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5";
+                btnInspector.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all flex items-center justify-center gap-1.5";
+            }
+        }
+
+        // Trace Definitions
+        const traces = {
+            'rtype': {
+                name: 'ADD (R-Type Instruction)',
+                desc: 'Standard 5-stage progression: Fetch ➔ Decode ➔ Execute ➔ Memory ➔ Writeback.',
+                steps: [
+                    { name: 'Stage 1: Fetch (IF)', desc: 'PC drives Instruction Memory. PC+4 calculated for next sequential instruction.', blocks: ['block-pcreg', 'block-pcadd4', 'block-imem', 'block-regID'], wires: ['wire-pc', 'wire-pcplus4f', 'wire-instrf'] },
+                    { name: 'Stage 2: Decode (ID)', desc: 'Instruction decoded by maindec. Register file reads rs1 and rs2.', blocks: ['block-controller', 'block-maindec', 'block-regfile', 'block-regE'], wires: ['wire-instrd', 'wire-rd1d', 'wire-rd2d'] },
+                    { name: 'Stage 3: Execute (EX)', desc: 'ALU performs ADD operation on srca and srcb.', blocks: ['block-forwarda_mux', 'block-forwardb_mux', 'block-alu', 'block-regM'], wires: ['wire-srcae', 'wire-srcbe', 'wire-aluresulte'] },
+                    { name: 'Stage 4: Memory (MEM)', desc: 'R-Type does not write to data memory. ALU result propagates through EX/MEM register.', blocks: ['block-regM', 'block-regW'], wires: ['wire-aluresultm'] },
+                    { name: 'Stage 5: Writeback (WB)', desc: 'resultmux selects ALU result. Result written back to Rd in register file.', blocks: ['block-resultmux', 'block-regfile'], wires: ['wire-resultw'] }
+                ]
+            },
+            'forwarding': {
+                name: 'RAW Hazard with EX->EX & MEM->EX Forwarding',
+                desc: 'Instruction needs data generated by an immediately preceding ALU instruction.',
+                steps: [
+                    { name: 'Hazard Detection', desc: 'Hazard Unit detects Rs1E == RdM and RegWriteM == 1. Asserts ForwardAE = 2b10.', blocks: ['block-hazard', 'block-forwarda_mux'], wires: ['wire-fwda-mem'] },
+                    { name: 'Forwarded Execution', desc: 'Forwarding mux routes ALU result directly from MEM stage into ALU input A without stalling.', blocks: ['block-forwarda_mux', 'block-alu'], wires: ['wire-srcae', 'wire-aluresulte'] },
+                    { name: 'Pipeline Commitment', desc: 'Both instructions advance concurrently with zero lost clock cycles.', blocks: ['block-regM', 'block-regW'], wires: ['wire-aluresultm', 'wire-resultw'] }
+                ]
+            },
+            'loaduse': {
+                name: 'Load-Use Hazard & 1-Cycle Hardware Stall',
+                desc: 'Instruction immediately following LW uses the loaded register. Requires 1-cycle stall.',
+                steps: [
+                    { name: 'Detection & Interlock', desc: 'Hazard Unit detects ResultSrcE[0] == 1 and (Rs1D == RdE). Asserts StallPC=1, StallID=1, FlushEX=1.', blocks: ['block-hazard', 'block-pcreg', 'block-regID', 'block-regE'], wires: ['wire-stallpc', 'wire-stallid', 'wire-stallex'] },
+                    { name: 'Bubble Insertion', desc: 'PC and IF/ID are frozen. ID/EX is cleared with NOP bubble, allowing LW to reach MEM stage.', blocks: ['block-regE', 'block-dmem'], wires: ['wire-dmemrd'] },
+                    { name: 'Forwarding & Resumption', desc: 'Data loaded from DMem is forwarded from MEM/WB to EX stage. Stall released!', blocks: ['block-forwarda_mux', 'block-alu'], wires: ['wire-fwda-wb', 'wire-srcae'] }
+                ]
+            },
+            'branch': {
+                name: 'BEQ Branch Taken & Pipeline Flush',
+                desc: 'Branch condition evaluates to TRUE in EX stage. Flushes 2 speculative instructions.',
+                steps: [
+                    { name: 'Condition Evaluation', desc: 'ALU subtracts rs1 and rs2, asserting Zero=1. PCSrcE asserts taken.', blocks: ['block-alu', 'block-pcaddbranch', 'block-pcmux'], wires: ['wire-zeroe', 'wire-pctargete'] },
+                    { name: 'Pipeline Flush', desc: 'Hazard Unit asserts FlushID=1 and FlushEX=1, clearing speculative instructions in IF/ID and ID/EX.', blocks: ['block-hazard', 'block-regID', 'block-regE'], wires: ['wire-pctargete', 'wire-pcnext'] },
+                    { name: 'Target Branch Fetch', desc: 'PC loads target branch address. Execution resumes seamlessly at target location.', blocks: ['block-pcreg', 'block-imem'], wires: ['wire-pc', 'wire-instrf'] }
+                ]
+            },
+            'load': {
+                name: 'LW (Load Word from Memory)',
+                desc: 'Computes effective address, loads 32-bit word from Data Memory, writes back to register.',
+                steps: [
+                    { name: 'Fetch & Decode', desc: 'Fetches LW, reads base register rs1 and extracts sign-extended immediate offset.', blocks: ['block-imem', 'block-regfile', 'block-extend'], wires: ['wire-pc', 'wire-instrd', 'wire-immextd'] },
+                    { name: 'Address Generation', desc: 'ALU adds base address and immediate to form effective data memory address.', blocks: ['block-alu'], wires: ['wire-srcae', 'wire-srcbe', 'wire-aluresulte'] },
+                    { name: 'Memory Access', desc: 'Data Memory reads 32-bit word at effective address.', blocks: ['block-arbiter', 'block-dmem'], wires: ['wire-aluresultm', 'wire-dmemrd'] },
+                    { name: 'Writeback', desc: 'Loaded data is routed via resultmux into register file destination rd.', blocks: ['block-resultmux', 'block-regfile'], wires: ['wire-resultw'] }
+                ]
+            },
+            'store': {
+                name: 'SW (Store Word to Memory)',
+                desc: 'Computes effective address and writes 32-bit word into Data Memory in MEM stage.',
+                steps: [
+                    { name: 'Fetch & Decode', desc: 'Reads base register rs1, store data register rs2, and S-type immediate.', blocks: ['block-imem', 'block-regfile', 'block-extend'], wires: ['wire-instrd', 'wire-rd1d', 'wire-rd2d'] },
+                    { name: 'Effective Address', desc: 'ALU computes memory address; forwardb_mux handles potential forwarding for writedata.', blocks: ['block-alu', 'block-forwardb_mux'], wires: ['wire-aluresulte', 'wire-writedatae'] },
+                    { name: 'Memory Write', desc: 'Data memory asserts we=1 and writes writedataM into address aluresultM.', blocks: ['block-arbiter', 'block-dmem'], wires: ['wire-aluresultm', 'wire-writedatam'] }
+                ]
+            },
+            'matmul': {
+                name: 'Custom 64-Cycle Matmul Accelerator',
+                desc: 'Full 4x4 matrix multiplication coprocessor with memory bus hijacking and 64-cycle pipeline freeze.',
+                steps: [
+                    { name: '1. Decode & Pointer Latch', desc: 'Opcode 0001011 decoded. rs1 and rs2 latched from EX. a1D mux routes rd to register file for 3rd pointer.', blocks: ['block-maindec', 'block-a1Dmux', 'block-regfile', 'block-matmul'], wires: ['wire-instrd', 'wire-rd1d'] },
+                    { name: '2. Pipeline Freeze & Drain', desc: 'Hazard Unit freezes PC, IF/ID, and ID/EX. Older in-flight instructions in MEM/WB drain cleanly.', blocks: ['block-hazard', 'block-pcreg', 'block-regID', 'block-regE'], wires: ['wire-stallpc', 'wire-stallid', 'wire-stallex', 'wire-matmul-busy'] },
+                    { name: '3. Memory Bus Hijack (READ)', desc: 'Memory Arbiter gives direct memory control to matmul engine. Sequentially reads 16 elements for Matrix A and 16 elements for Matrix B (32 cycles).', blocks: ['block-matmul', 'block-arbiter', 'block-dmem'], wires: ['wire-matmul-dmem', 'wire-matmul-busy'] },
+                    { name: '4. Compute & Memory Write', desc: 'Engine computes 16 dot products (16 cycles) and writes Matrix C directly to destination memory addresses (16 cycles). Total = 64 cycles.', blocks: ['block-matmul', 'block-arbiter', 'block-dmem'], wires: ['wire-matmul-dmem'] },
+                    { name: '5. Resume Pipeline', desc: 'matmul_busy drops to 0. Hazard Unit unfreezes pipeline. CPU resumes at next sequential instruction!', blocks: ['block-hazard', 'block-pcreg', 'block-regID'], wires: ['wire-pcnext', 'wire-pc'] }
+                ]
+            }
+        };
+
+        function setTrace(key) {
+            stopPlay();
+            currentTrace = key;
+            currentStep = 0;
+            switchSidebarTab('traces');
+
+            document.querySelectorAll('.trace-btn').forEach(btn => {
+                if (btn.dataset.trace === key) {
+                    btn.classList.add('border-indigo-500', 'bg-indigo-600', 'text-white');
+                } else {
+                    btn.classList.remove('border-indigo-500', 'bg-indigo-600', 'text-white');
+                }
+            });
+
+            if (!key || !traces[key]) {
+                clearHighlights();
+                document.getElementById('instruction-desc').innerHTML = 'Select a trace above to visualize pipeline progression.';
+                document.getElementById('seq-status').innerText = 'No active trace';
+                document.getElementById('seq-prev-btn').disabled = true;
+                document.getElementById('seq-next-btn').disabled = true;
+                return;
+            }
+
+            document.getElementById('seq-prev-btn').disabled = false;
+            document.getElementById('seq-next-btn').disabled = false;
+            updateStep();
+        }
+
+        function updateStep() {
+            if (!currentTrace || !traces[currentTrace]) return;
+            const trace = traces[currentTrace];
+            const step = trace.steps[currentStep];
+
+            clearHighlights();
+
+            // Highlight blocks & wires
+            step.blocks.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('active-block-highlight');
+            });
+            step.wires.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('active-wire-highlight');
+            });
+
+            document.getElementById('instruction-desc').innerHTML = `
+                <div class="font-bold text-indigo-500 mb-0.5">${trace.name}</div>
+                <div class="font-semibold text-slate-800 dark:text-slate-200 text-xs mb-1">${step.name}</div>
+                <div class="text-[11px] text-slate-500 leading-relaxed">${step.desc}</div>
+            `;
+            document.getElementById('seq-status').innerText = `Step ${currentStep + 1} of ${trace.steps.length}: ${step.name}`;
+
+            document.getElementById('seq-prev-btn').disabled = (currentStep === 0);
+            document.getElementById('seq-next-btn').disabled = (currentStep === trace.steps.length - 1);
+        }
+
+        function nextStep() {
+            if (!currentTrace) return;
+            if (currentStep < traces[currentTrace].steps.length - 1) {
+                currentStep++;
+                updateStep();
+            } else if (isPlaying) {
+                stopPlay();
+            }
+        }
+
+        function prevStep() {
+            if (!currentTrace) return;
+            if (currentStep > 0) {
+                currentStep--;
+                updateStep();
+            }
+        }
+
+        function togglePlay() {
+            if (isPlaying) {
+                stopPlay();
+            } else {
+                startPlay();
+            }
+        }
+
+        function startPlay() {
+            if (!currentTrace) setTrace('rtype');
+            isPlaying = true;
+            document.getElementById('play-icon').innerText = '⏸';
+            document.getElementById('play-text').innerText = 'Pause';
+            const speed = parseInt(document.getElementById('seq-speed').value) || 900;
+            playInterval = setInterval(() => {
+                if (currentStep < traces[currentTrace].steps.length - 1) {
+                    nextStep();
+                } else {
+                    currentStep = 0;
+                    updateStep();
+                }
+            }, speed);
+        }
+
+        function stopPlay() {
+            isPlaying = false;
+            clearInterval(playInterval);
+            document.getElementById('play-icon').innerText = '▶';
+            document.getElementById('play-text').innerText = 'Auto Play';
+        }
+
+        document.getElementById('seq-speed').addEventListener('input', (e) => {
+            document.getElementById('seq-speed-val').innerText = e.target.value + 'ms';
+            if (isPlaying) {
+                stopPlay();
+                startPlay();
+            }
+        });
+
+        function clearHighlights() {
+            document.querySelectorAll('.block-interactive').forEach(el => el.classList.remove('active-block-highlight'));
+            document.querySelectorAll('.wire').forEach(el => el.classList.remove('active-wire-highlight'));
+        }
+
+        // Inspector Data Dictionary
+        const inspectorData = {
+            'hazard': {
+                title: 'Hazard & Forwarding Unit (hazard.v)',
+                badge: 'Control Unit',
+                desc: 'Detects RAW data hazards, load-use hazards, control hazards (branches/jumps), and manages the 64-cycle matmul accelerator stall state machine.',
+                signals: [
+                    { name: 'ForwardAE[1:0]', type: 'Output', desc: 'Forwarding control for ALU input A (00: ID/EX, 01: WB, 10: MEM)' },
+                    { name: 'ForwardBE[1:0]', type: 'Output', desc: 'Forwarding control for ALU input B' },
+                    { name: 'StallPC, StallID, StallEX', type: 'Outputs', desc: 'Freezes PC and pipeline registers on load-use and matmul stalls' },
+                    { name: 'FlushID, FlushEX, FlushMEM', type: 'Outputs', desc: 'Clears pipeline registers on branch taken or load-use bubble insertion' },
+                    { name: 'matmul_busy', type: 'Input', desc: 'High while matmul 64-cycle coprocessor is running' }
+                ],
+                file: 'hazard.v'
+            },
+            'matmul': {
+                title: 'Custom Matmul Accelerator (matmul.v)',
+                badge: 'Coprocessor',
+                desc: 'Executes 64-cycle 4x4 integer matrix multiplication. Directly hijacks data memory bus through Memory Arbiter.',
+                signals: [
+                    { name: 'rs1_val[31:0]', type: 'Input', desc: 'Base memory address of Matrix A' },
+                    { name: 'rs2_val[31:0]', type: 'Input', desc: 'Base memory address of Matrix B' },
+                    { name: 'rd_val[31:0]', type: 'Input', desc: 'Base destination memory address of Matrix C' },
+                    { name: 'matmul_busy', type: 'Output', desc: 'Asserted for 64 cycles to freeze CPU pipeline' },
+                    { name: 'matmul_dmem_*', type: 'Bus', desc: 'Direct memory addr, wdata, we, and rdata interface' }
+                ],
+                file: 'matmul.v'
+            },
+            'arbiter': {
+                title: 'Memory Arbiter (top.v)',
+                badge: 'Interconnect',
+                desc: 'Multiplexes Data Memory access between normal CPU Memory stage and the custom matmul accelerator.',
+                signals: [
+                    { name: 'dmem_we', type: 'Output', desc: 'matmul_busy ? matmul_dmem_we : mem_we' },
+                    { name: 'dmem_addr', type: 'Output', desc: 'matmul_busy ? matmul_dmem_addr : mem_addr' },
+                    { name: 'dmem_wdata', type: 'Output', desc: 'matmul_busy ? matmul_dmem_wdata : mem_wdata' }
+                ],
+                file: 'top.v'
+            },
+            'alu': {
+                title: 'Arithmetic Logic Unit (alu.v)',
+                badge: 'EX Stage',
+                desc: 'Performs 32-bit arithmetic and logic operations (ADD, SUB, AND, OR, SLT). Produces Zero flag for branch decisions.',
+                signals: [
+                    { name: 'srca[31:0]', type: 'Input', desc: 'Operand A (from Forwarding Mux A)' },
+                    { name: 'srcb[31:0]', type: 'Input', desc: 'Operand B (from ALUSrc Mux)' },
+                    { name: 'alucontrol[2:0]', type: 'Input', desc: 'Operation selector' },
+                    { name: 'aluresult[31:0]', type: 'Output', desc: '32-bit computation output' },
+                    { name: 'Zero', type: 'Output', desc: 'High if aluresult == 0 (for BEQ)' }
+                ],
+                file: 'alu.v'
+            },
+            'regfile': {
+                title: 'Register File (regfile.v)',
+                badge: 'ID Stage',
+                desc: '32 general-purpose 32-bit registers (x0-x31). Two asynchronous read ports, one synchronous write port on clock posedge.',
+                signals: [
+                    { name: 'a1[4:0], a2[4:0]', type: 'Inputs', desc: 'Read addresses (a1 multiplexed during matmul to read rd)' },
+                    { name: 'rd1[31:0], rd2[31:0]', type: 'Outputs', desc: 'Asynchronous register data outputs' },
+                    { name: 'a3[4:0], wd3[31:0]', type: 'Inputs', desc: 'Write address and write data from WB stage' },
+                    { name: 'we3', type: 'Input', desc: 'RegWriteW enable from WB stage' }
+                ],
+                file: 'regfile.v'
+            },
+            'dmem': {
+                title: 'Data Memory (dmem.v)',
+                badge: 'MEM Stage',
+                desc: 'Byte-addressable word-aligned RAM. Synchronous write, asynchronous read.',
+                signals: [
+                    { name: 'a[31:0]', type: 'Input', desc: 'Memory address (aluresultM or matmul_dmem_addr)' },
+                    { name: 'wd[31:0]', type: 'Input', desc: 'Write data word' },
+                    { name: 'we', type: 'Input', desc: 'Write enable' },
+                    { name: 'rd[31:0]', type: 'Output', desc: 'Memory read data' }
+                ],
+                file: 'dmem.v'
+            },
+            'imem': {
+                title: 'Instruction Memory (imem.v)',
+                badge: 'IF Stage',
+                desc: 'Read-only memory preloaded from machine code hex files via $readmemh.',
+                signals: [
+                    { name: 'a[31:0]', type: 'Input', desc: 'Program Counter (PC)' },
+                    { name: 'rd[31:0]', type: 'Output', desc: '32-bit instruction word (instrF)' }
+                ],
+                file: 'imem.v'
+            },
+            'regID': { title: 'IF/ID Pipeline Register (flopenrc)', badge: 'Pipe Reg', desc: 'Latches instrD, PCD, PCPlus4D. Controlled by StallID and FlushID.', file: 'flopenrc.v' },
+            'regE': { title: 'ID/EX Pipeline Register (flopenrc)', badge: 'Pipe Reg', desc: 'Latches rd1E, rd2E, PCE, Rs1E, Rs2E, RdE, immextE, control lines. Controlled by StallEX and FlushEX.', file: 'flopenrc.v' },
+            'regM': { title: 'EX/MEM Pipeline Register (flopenrc)', badge: 'Pipe Reg', desc: 'Latches aluresultM, writedataM, RdM, PCPlus4M, MemWriteM, RegWriteM. Controlled by FlushMEM.', file: 'flopenrc.v' },
+            'regW': { title: 'MEM/WB Pipeline Register (flopr)', badge: 'Pipe Reg', desc: 'Latches aluresultW, readdataW, RdW, PCPlus4W, RegWriteW, ResultSrcW.', file: 'flopr.v' }
+        };
+
+        function inspectElement(key) {
+            const data = inspectorData[key];
+            if (!data) return;
+            switchSidebarTab('inspector');
+            document.getElementById('inspector-badge').innerText = data.badge;
+            let signalsHtml = '';
+            if (data.signals) {
+                signalsHtml = `
+                    <div class="border-t border-slate-200 dark:border-slate-800 pt-2 mt-2">
+                        <div class="font-bold text-[10px] uppercase text-slate-400 mb-1">Key Signals &amp; Ports</div>
+                        <ul class="space-y-1">
+                            ${data.signals.map(s => `<li><span class="mono-font text-indigo-500 font-semibold">${s.name}</span> <span class="text-[10px] text-slate-400">(${s.type})</span>: <span class="text-slate-600 dark:text-slate-300 text-[11px]">${s.desc}</span></li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            document.getElementById('inspector-content').innerHTML = `
+                <div class="font-bold text-sm text-indigo-500 heading-font">${data.title}</div>
+                <p class="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">${data.desc}</p>
+                ${signalsHtml}
+                <div class="pt-2 mt-2 border-t border-slate-200 dark:border-slate-800">
+                    <button onclick="openVerilogModal('${data.file}')" class="text-xs px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 transition-colors font-medium flex items-center gap-1">
+                        &lt;/&gt; Open ${data.file} Source Code
+                    </button>
+                </div>
+            `;
+        }
+
+        function inspectWire(wireId) {
+            switchSidebarTab('inspector');
+            document.getElementById('inspector-badge').innerText = 'Wire Bus';
+            document.getElementById('inspector-content').innerHTML = `
+                <div class="font-bold text-sm text-sky-500 mono-font">${wireId}</div>
+                <p class="text-slate-600 dark:text-slate-300 text-xs">Interactive wire bus connecting pipeline stages and multiplexers.</p>
+            `;
+        }
+
+        // Verilog Modal Functions
+        function openVerilogModal(filename) {
+            const modal = document.getElementById('verilog-modal');
+            const select = document.getElementById('modal-file-select');
+            select.value = filename;
+            loadSelectedVerilog(filename);
+            modal.classList.remove('hidden');
+        }
+
+        function loadSelectedVerilog(filename) {
+            const script = document.getElementById('vcode-' + filename);
+            const codeBody = document.getElementById('modal-code-body');
+            if (script) {
+                codeBody.textContent = script.textContent.trim();
+                Prism.highlightElement(codeBody);
+            } else {
+                codeBody.textContent = '// File not found: ' + filename;
+            }
+        }
+
+        function closeVerilogModal() {
+            document.getElementById('verilog-modal').classList.add('hidden');
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+    
+    </script>
+</body>
+</html>

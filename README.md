@@ -35,7 +35,7 @@ This core represents an architectural progression from my previous **[Single-Cyc
 
 ## Key Features
 
-🔗 **[Interactive HTML Schematic](https://pranav-2045.github.io/risv-5stage-pipelined-matmul/docs/schematics/interactive_schematic.html)**
+🔗 **[Interactive HTML Schematic](https://github.com/pranav-2045/risv-5stage-pipelined-matmul/docs/schematics/interactive_schematic.html)**
 - **Standard 5-Stage Pipeline**: Separate **Fetch (IF)**, **Decode (ID)**, **Execute (EX)**, **Memory (MEM)**, and **Writeback (WB)** stages with enable- and clear-capable pipeline registers (`flopenr`, `flopenrc`).
 - **Comprehensive Hazard Handling**:
   - **Data Forwarding (Bypassing)**: Direct EX $\rightarrow$ EX, MEM $\rightarrow$ EX, and WB $\rightarrow$ EX forwarding paths for both source registers (`rs1`, `rs2`), preventing pipeline bubbles on RAW hazards.
